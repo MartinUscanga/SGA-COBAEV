@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resetear Service Worker - COBAEV</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f7f3eb;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #5c1931; margin-top: 0; }
+        button {
+            background: #5c1931;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+        }
+        button:hover { opacity: 0.9; }
+        .log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔧 Resetear Service Worker</h1>
+        <p>Usa esta herramienta cuando vincules un nuevo dispositivo o tengas problemas con las notificaciones.</p>
+        
+        <button onclick="resetCompleto()">🔄 Reset Completo (Recomendado)</button>
+        <button onclick="soloDesregistrarSW()">❌ Solo Desregistrar SW</button>
+        <button onclick="soloLimpiarCaches()">🗑️ Solo Limpiar Cachés</button>
+        <button onclick="verificarEstado()">📊 Verificar Estado Actual</button>
+        
+        <div class="log" id="log">
+            <div>Listo para resetear...</div>
+        </div>
+        
+        <hr style="margin: 20px 0;">
+        <a href="padres.php" style="color: #5c1931;">← Volver al Portal de Padres</a>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        
+        function escribirLog(mensaje, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const clase = tipo === 'success' ? 'success' : tipo === 'error' ? 'error' : tipo === 'warning' ? 'warning' : '';
+            log.innerHTML += `<div class="${clase}">[${timestamp}] ${mensaje}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function resetCompleto() {
+            log.innerHTML = '';
+            escribirLog('🔄 Iniciando reset completo...', 'info');
+            
+            try {
+                // 1. Desregistrar Service Workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                escribirLog(`Encontrados ${registrations.length} Service Worker(s)`, 'info');
+                
+                for (const reg of registrations) {
+                    await reg.unregister();
+                    escribirLog('✅ Service Worker desregistrado', 'success');
+                }
+                
+                // 2. Limpiar cachés
+                const cacheNames = await caches.keys();
+                escribirLog(`Encontradas ${cacheNames.length} cache(s)`, 'info');
+                
+                for (const name of cacheNames) {
+                    await caches.delete(name);
+                    escribirLog(`✅ Cache "${name}" eliminada`, 'success');
+                }
+                
+                // 3. Limpiar localStorage y sessionStorage
+                localStorage.clear();
+                sessionStorage.clear();
+                escribirLog('✅ Storage limpiado', 'success');
+                
+                escribirLog('✅ Reset completo exitoso', 'success');
+                escribirLog('🔄 Recargando página en 2 segundos...', 'info');
+                
+                setTimeout(() => {
+                    window.location.href = 'padres.php';
+                }, 2000);
+                
+            } catch (error) {
+                escribirLog('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function soloDesregistrarSW() {
+            log.innerHTML = '';
+            escribirLog('❌ Desregistrando Service Workers...', 'info');
+            
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                
+                if (registrations.length === 0) {
+                    escribirLog('⚠️ No hay Service Workers registrados', 'warning');
+                    return;
+                }
+                
+                for (const reg of registrations) {
+                    await reg.unregister();
+                    escribirLog('✅ Service Worker desregistrado', 'success');
+                }
+                
+                escribirLog('✅ Completado. Recarga la página (Ctrl+Shift+R)', 'success');
+                
+            } catch (error) {
+                escribirLog('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function soloLimpiarCaches() {
+            log.innerHTML = '';
+            escribirLog('🗑️ Limpiando cachés...', 'info');
+            
+            try {
+                const cacheNames = await caches.keys();
+                
+                if (cacheNames.length === 0) {
+                    escribirLog('⚠️ No hay cachés para limpiar', 'warning');
+                    return;
+                }
+                
+                for (const name of cacheNames) {
+                    await caches.delete(name);
+                    escribirLog(`✅ Cache "${name}" eliminada`, 'success');
+                }
+                
+                escribirLog('✅ Cachés eliminadas', 'success');
+                
+            } catch (error) {
+                escribirLog('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function verificarEstado() {
+            log.innerHTML = '';
+            escribirLog('📊 Verificando estado...', 'info');
+            
+            try {
+                // Service Workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                escribirLog(`Service Workers activos: ${registrations.length}`, 'info');
+                
+                registrations.forEach((reg, i) => {
+                    escribirLog(`  SW ${i+1}: ${reg.active ? 'Activo' : 'Inactivo'}`, 'info');
+                    escribirLog(`  Scope: ${reg.scope}`, 'info');
+                });
+                
+                // Cachés
+                const cacheNames = await caches.keys();
+                escribirLog(`Cachés almacenadas: ${cacheNames.length}`, 'info');
+                cacheNames.forEach(name => {
+                    escribirLog(`  - ${name}`, 'info');
+                });
+                
+                // Permisos de notificaciones
+                escribirLog(`Permisos de notificaciones: ${Notification.permission}`, 
+                    Notification.permission === 'granted' ? 'success' : 'warning');
+                
+                // LocalStorage
+                escribirLog(`Items en localStorage: ${localStorage.length}`, 'info');
+                
+                escribirLog('✅ Verificación completa', 'success');
+                
+            } catch (error) {
+                escribirLog('❌ Error: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
