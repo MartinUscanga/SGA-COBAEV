@@ -111,10 +111,10 @@ onMessage(messaging, (payload) => {
         const title = payload.notification.title || 'Notificación COBAEV';
         const options = {
             body: payload.notification.body || 'Nueva notificación del sistema',
-            icon: '/icono-cobaev.png', // Asegúrate de tener este archivo
-            badge: '/badge-cobaev.png',
+            icon: '/logo.svg',
+            badge: '/logo.svg',
             tag: 'cobaev-notification',
-            requireInteraction: true, // La notificación permanece hasta que el usuario la cierre
+            requireInteraction: true,
             data: payload.data || {}
         };
 

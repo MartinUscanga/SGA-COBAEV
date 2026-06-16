@@ -27,7 +27,7 @@ messaging.onBackgroundMessage((payload) => {
     // Extraer información del payload
     const notificationTitle = payload.notification?.title || 'Alerta COBAEV';
     const notificationBody = payload.notification?.body || 'Nuevo registro de acceso';
-    const notificationIcon = payload.notification?.icon || '/logo.png';
+    const notificationIcon = payload.notification?.icon || '/logo.svg';
     const notificationImage = payload.notification?.image || null;
     
     // Datos adicionales
@@ -41,7 +41,7 @@ messaging.onBackgroundMessage((payload) => {
     const notificationOptions = {
         body: notificationBody,
         icon: notificationIcon,
-        badge: '/logo.png',
+        badge: '/logo.svg',
         image: notificationImage,
         tag: 'cobaev-' + Date.now(), // 🔥 IMPORTANTE: Tag único para cada notificación
         renotify: true,
@@ -77,8 +77,8 @@ self.addEventListener('push', (event) => {
             const title = data.notification?.title || 'Notificación COBAEV';
             const options = {
                 body: data.notification?.body || 'Nueva actualización',
-                icon: '/logo.png',
-                badge: '/logo.png',
+                icon: '/logo.svg',
+                badge: '/logo.svg',
                 tag: 'cobaev-push-' + Date.now(),
                 renotify: true,
                 requireInteraction: true,
@@ -96,7 +96,7 @@ self.addEventListener('push', (event) => {
             event.waitUntil(
                 self.registration.showNotification('Nueva Notificación', {
                     body: 'Tienes una nueva actualización del sistema COBAEV',
-                    icon: '/logo.png',
+                    icon: '/logo.svg',
                     tag: 'cobaev-fallback-' + Date.now()
                 })
             );
@@ -149,10 +149,11 @@ self.addEventListener('install', (event) => {
         caches.open('cobaev-cache-v1').then((cache) => {
             return cache.addAll([
                 '/padres.php',
-                '/login_padres.php',
-                '/app.js',
-                '/icono-cobaev.png',
-                '/badge-cobaev.png'
+                '/login_padres_mejorado.php',
+                '/app.js'
+                // ❌ Comentados porque no existen:
+                // '/icono-cobaev.png',
+                // '/badge-cobaev.png'
             ]).catch((err) => {
                 console.warn('[Service Worker] ⚠️ Error al cachear recursos:', err);
             });
