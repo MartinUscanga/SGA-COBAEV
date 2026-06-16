@@ -1,0 +1,40 @@
+# Dependencias de Composer
+/vendor/
+
+# Credenciales de Firebase (NUNCA subir al repositorio)
+config/service-account.json
+
+# Variables de entorno
+.env
+.env.local
+
+# Logs
+*.log
+error_log
+
+# Caché de sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos temporales
+*.tmp
+*.temp
+*.cache
+
+# Backups
+*.bak
+*.backup
+*~
+
+# Archivos de configuración local
+config.local.php
+
+# Node modules (si se usa npm/yarn)
+node_modules/

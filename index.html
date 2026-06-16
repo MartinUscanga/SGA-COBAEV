@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Gestión de Asistencias - COBAEV">
+    <meta name="theme-color" content="#5c1931">
+    <title>SGA COBAEV - Sistema de Gestión de Asistencias</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        .font-serif-elegant { font-family: 'Playfair Display', serif; }
+        .font-sans-clean { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        .bg-crema { background-color: #f7f3eb; }
+        .text-vino { color: #5c1931; }
+        .bg-vino { background-color: #5c1931; }
+        .border-vino { border-color: #5c1931; }
+        .text-dorado { color: #a48253; }
+        .bg-dorado { background-color: #a48253; }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .fade-in-up { animation: fadeInUp 0.6s ease-out; }
+        .fade-in-up-delay { animation: fadeInUp 0.6s ease-out 0.2s both; }
+    </style>
+</head>
+<body class="bg-crema font-sans-clean min-h-screen flex flex-col">
+
+    <!-- Hero Section -->
+    <main class="flex-grow flex items-center justify-center p-4 md:p-8">
+        <div class="max-w-2xl w-full text-center space-y-8 fade-in-up">
+            
+            <!-- Logo -->
+            <div class="flex justify-center mb-6">
+                <img src="logo.png" alt="Logo COBAEV" class="w-32 h-32 object-contain">
+            </div>
+            
+            <!-- Título Principal -->
+            <div class="space-y-3">
+                <h1 class="text-4xl md:text-5xl font-serif-elegant font-bold text-vino tracking-tight">
+                    Sistema de Gestión de Asistencias
+                </h1>
+                <div class="flex items-center justify-center space-x-3">
+                    <div class="h-[2px] w-12 bg-dorado"></div>
+                    <p class="text-dorado font-serif-elegant italic text-xl">COBAEV</p>
+                    <div class="h-[2px] w-12 bg-dorado"></div>
+                </div>
+                <p class="text-zinc-600 text-lg font-medium max-w-xl mx-auto">
+                    Monitoreo en tiempo real de accesos escolares para padres de familia
+                </p>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="space-y-4 pt-6 fade-in-up-delay">
+                <a href="login_padres.php" 
+                   class="block bg-vino hover:bg-opacity-95 text-white font-bold text-sm tracking-wider uppercase py-4 px-8 rounded-xl shadow-lg active:scale-[0.98] transition-all">
+                    🎒 Acceso Padres de Familia
+                </a>
+                
+                <a href="#info" 
+                   class="block bg-white hover:bg-zinc-50 text-vino border-2 border-vino font-bold text-sm tracking-wider uppercase py-4 px-8 rounded-xl shadow-sm active:scale-[0.98] transition-all">
+                    ℹ️ ¿Cómo funciona?
+                </a>
+            </div>
+
+            <!-- Características -->
+            <div class="grid md:grid-cols-3 gap-4 pt-8" id="info">
+                <div class="bg-white border border-zinc-200 rounded-xl p-5 space-y-2">
+                    <div class="text-3xl">📱</div>
+                    <h3 class="font-bold text-zinc-800 text-sm uppercase tracking-wide">Notificaciones Push</h3>
+                    <p class="text-xs text-zinc-600">Recibe alertas instantáneas al registrarse entrada o salida</p>
+                </div>
+                
+                <div class="bg-white border border-zinc-200 rounded-xl p-5 space-y-2">
+                    <div class="text-3xl">⏱️</div>
+                    <h3 class="font-bold text-zinc-800 text-sm uppercase tracking-wide">Tiempo Real</h3>
+                    <p class="text-xs text-zinc-600">Consulta el estatus actual y historial completo de asistencias</p>
+                </div>
+                
+                <div class="bg-white border border-zinc-200 rounded-xl p-5 space-y-2">
+                    <div class="text-3xl">🔒</div>
+                    <h3 class="font-bold text-zinc-800 text-sm uppercase tracking-wide">100% Seguro</h3>
+                    <p class="text-xs text-zinc-600">Protección de datos conforme a estándares educativos</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-6 text-center text-xs text-zinc-400 uppercase tracking-widest bg-white border-t border-zinc-100">
+        <p>Colegio de Bachilleres del Estado de Veracruz</p>
+        <p class="text-[10px] mt-1">Sistema de Alertas de Acceso • 2024</p>
+    </footer>
+
+    <!-- Registrar Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('✅ Service Worker registrado'))
+                    .catch(err => console.log('❌ Error:', err));
+            });
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Notificaciones - COBAEV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold mb-4">🔔 Test de Notificaciones Push</h1>
+        
+        <div class="space-y-4">
+            <!-- Estado del Service Worker -->
+            <div class="border rounded p-4">
+                <h2 class="font-bold mb-2">1. Service Worker</h2>
+                <p id="sw-status" class="text-gray-600">Verificando...</p>
+            </div>
+
+            <!-- Estado de Permisos -->
+            <div class="border rounded p-4">
+                <h2 class="font-bold mb-2">2. Permisos de Notificaciones</h2>
+                <p id="permission-status" class="text-gray-600">Verificando...</p>
+                <button id="request-permission" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Solicitar Permisos
+                </button>
+            </div>
+
+            <!-- Test Notificación Local -->
+            <div class="border rounded p-4">
+                <h2 class="font-bold mb-2">3. Test Notificación Local</h2>
+                <button id="test-local" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Probar Notificación Local
+                </button>
+                <p id="local-result" class="mt-2 text-sm"></p>
+            </div>
+
+            <!-- Test Notificación Service Worker -->
+            <div class="border rounded p-4">
+                <h2 class="font-bold mb-2">4. Test Notificación via Service Worker</h2>
+                <button id="test-sw" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                    Probar via Service Worker
+                </button>
+                <p id="sw-result" class="mt-2 text-sm"></p>
+            </div>
+
+            <!-- Test FCM -->
+            <div class="border rounded p-4">
+                <h2 class="font-bold mb-2">5. Test Firebase Cloud Messaging</h2>
+                <input type="text" id="matricula-test" placeholder="Matrícula (ej. B2024001)" 
+                       class="border rounded px-3 py-2 w-full mb-2">
+                <select id="tipo-test" class="border rounded px-3 py-2 w-full mb-2">
+                    <option value="Entrada">Entrada</option>
+                    <option value="Salida">Salida</option>
+                </select>
+                <button id="test-fcm" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                    Enviar Notificación Real
+                </button>
+                <p id="fcm-result" class="mt-2 text-sm"></p>
+            </div>
+
+            <!-- Log de Eventos -->
+            <div class="border rounded p-4">
+                <h2 class="font-bold mb-2">📋 Log de Eventos</h2>
+                <div id="log" class="bg-gray-50 p-3 rounded text-xs font-mono h-64 overflow-y-auto"></div>
+                <button id="clear-log" class="mt-2 bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">
+                    Limpiar Log
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Función para log
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = {
+                'info': 'text-blue-600',
+                'success': 'text-green-600',
+                'error': 'text-red-600',
+                'warning': 'text-yellow-600'
+            }[type];
+            
+            logDiv.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        // 1. Verificar Service Worker
+        async function checkServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        document.getElementById('sw-status').innerHTML = 
+                            '<span class="text-green-600">✅ Service Worker activo</span>';
+                        log('Service Worker encontrado y activo', 'success');
+                        return true;
+                    } else {
+                        document.getElementById('sw-status').innerHTML = 
+                            '<span class="text-red-600">❌ Service Worker no registrado</span>';
+                        log('Service Worker no está registrado', 'error');
+                        return false;
+                    }
+                } catch (error) {
+                    document.getElementById('sw-status').innerHTML = 
+                        '<span class="text-red-600">❌ Error: ' + error.message + '</span>';
+                    log('Error al verificar Service Worker: ' + error.message, 'error');
+                    return false;
+                }
+            } else {
+                document.getElementById('sw-status').innerHTML = 
+                    '<span class="text-red-600">❌ Service Worker no soportado</span>';
+                log('Este navegador no soporta Service Workers', 'error');
+                return false;
+            }
+        }
+
+        // 2. Verificar Permisos
+        function checkPermission() {
+            const permission = Notification.permission;
+            const statusEl = document.getElementById('permission-status');
+            
+            if (permission === 'granted') {
+                statusEl.innerHTML = '<span class="text-green-600">✅ Permisos concedidos</span>';
+                log('Permisos de notificaciones: GRANTED', 'success');
+            } else if (permission === 'denied') {
+                statusEl.innerHTML = '<span class="text-red-600">❌ Permisos denegados</span>';
+                log('Permisos de notificaciones: DENIED', 'error');
+            } else {
+                statusEl.innerHTML = '<span class="text-yellow-600">⚠️ Permisos pendientes</span>';
+                log('Permisos de notificaciones: DEFAULT (pendiente)', 'warning');
+            }
+        }
+
+        // 3. Solicitar Permisos
+        document.getElementById('request-permission').addEventListener('click', async () => {
+            try {
+                const permission = await Notification.requestPermission();
+                log('Resultado de solicitud de permisos: ' + permission, permission === 'granted' ? 'success' : 'warning');
+                checkPermission();
+            } catch (error) {
+                log('Error al solicitar permisos: ' + error.message, 'error');
+            }
+        });
+
+        // 4. Test Notificación Local
+        document.getElementById('test-local').addEventListener('click', () => {
+            if (Notification.permission === 'granted') {
+                try {
+                    const notification = new Notification('🧪 Test Local', {
+                        body: 'Esta es una notificación de prueba local',
+                        icon: '/logo.png',
+                        tag: 'test-local-' + Date.now(),
+                        requireInteraction: true
+                    });
+                    log('Notificación local creada exitosamente', 'success');
+                    document.getElementById('local-result').innerHTML = 
+                        '<span class="text-green-600">✅ Notificación enviada</span>';
+                } catch (error) {
+                    log('Error al crear notificación local: ' + error.message, 'error');
+                    document.getElementById('local-result').innerHTML = 
+                        '<span class="text-red-600">❌ Error: ' + error.message + '</span>';
+                }
+            } else {
+                log('Permisos no concedidos. No se puede mostrar notificación', 'warning');
+                document.getElementById('local-result').innerHTML = 
+                    '<span class="text-yellow-600">⚠️ Permisos no concedidos</span>';
+            }
+        });
+
+        // 5. Test via Service Worker
+        document.getElementById('test-sw').addEventListener('click', async () => {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.showNotification('🧪 Test Service Worker', {
+                    body: 'Esta notificación viene del Service Worker',
+                    icon: '/logo.png',
+                    badge: '/logo.png',
+                    tag: 'test-sw-' + Date.now(),
+                    requireInteraction: true,
+                    vibrate: [300, 100, 300]
+                });
+                log('Notificación enviada via Service Worker', 'success');
+                document.getElementById('sw-result').innerHTML = 
+                    '<span class="text-green-600">✅ Notificación enviada</span>';
+            } catch (error) {
+                log('Error al enviar via Service Worker: ' + error.message, 'error');
+                document.getElementById('sw-result').innerHTML = 
+                    '<span class="text-red-600">❌ Error: ' + error.message + '</span>';
+            }
+        });
+
+        // 6. Test FCM Real
+        document.getElementById('test-fcm').addEventListener('click', async () => {
+            const matricula = document.getElementById('matricula-test').value.trim().toUpperCase();
+            const tipo = document.getElementById('tipo-test').value;
+            
+            if (!matricula) {
+                alert('Por favor ingresa una matrícula');
+                return;
+            }
+
+            log(`Enviando notificación FCM para ${matricula} - ${tipo}`, 'info');
+            document.getElementById('fcm-result').innerHTML = 
+                '<span class="text-blue-600">⏳ Enviando...</span>';
+
+            try {
+                const response = await fetch('enviar_notificacion.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ matricula, tipo })
+                });
+
+                const data = await response.json();
+                log('Respuesta del servidor: ' + JSON.stringify(data, null, 2), 
+                    data.success ? 'success' : 'error');
+
+                if (data.success) {
+                    document.getElementById('fcm-result').innerHTML = 
+                        `<span class="text-green-600">✅ ${data.message}</span>`;
+                } else {
+                    document.getElementById('fcm-result').innerHTML = 
+                        `<span class="text-red-600">❌ ${data.error || data.message}</span>`;
+                }
+            } catch (error) {
+                log('Error al enviar notificación FCM: ' + error.message, 'error');
+                document.getElementById('fcm-result').innerHTML = 
+                    '<span class="text-red-600">❌ Error: ' + error.message + '</span>';
+            }
+        });
+
+        // 7. Limpiar Log
+        document.getElementById('clear-log').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+            log('Log limpiado', 'info');
+        });
+
+        // Inicializar al cargar
+        window.addEventListener('load', () => {
+            log('=== INICIANDO DIAGNÓSTICO ===', 'info');
+            checkServiceWorker();
+            checkPermission();
+        });
+    </script>
+</body>
+</html>
