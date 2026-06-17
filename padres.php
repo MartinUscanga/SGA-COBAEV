@@ -2,49 +2,42 @@
 /**
  * Portal de Padres - COBAEV
  * Dashboard de seguimiento de asistencias en tiempo real
+ * Mobile-first UI/UX
  */
 
-// Aseguramos el búfer de salida para evitar errores de redirección
+// Aseguramos el bufer de salida para evitar errores de redireccion
 ob_start();
 
 // Configurar zona horaria
 date_default_timezone_set('America/Mexico_City');
 
-// Iniciamos la sesión de forma segura
+// Iniciamos la sesion de forma segura
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Protegemos la página: verificar autenticación
+// Protegemos la pagina: verificar autenticacion
 if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
     header("Location: login_padres.php");
     exit;
 }
 
-// Verificar timeout de sesión (30 minutos de inactividad)
-if (isset($_SESSION['ultima_actividad']) && (time() - $_SESSION['ultima_actividad'] > 1800)) {
-    session_unset();
-    session_destroy();
-    header("Location: login_padres.php?timeout=1");
-    exit;
-}
-$_SESSION['ultima_actividad'] = time();
-
-// Traemos la conexión PDO
+// Traemos la conexion PDO
 require_once 'conexion.php';
 
-// Recogemos las variables de sesión
+// Recogemos las variables de sesion (solo las que define login_padres.php)
 $matricula_alumno = $_SESSION['alumno_matricula'] ?? '';
 $nombre_alumno    = $_SESSION['alumno_nombre'] ?? 'Alumno';
 $nombre_tutor     = $_SESSION['tutor_nombre'] ?? 'Tutor';
-$grupo_alumno     = $_SESSION['alumno_grupo'] ?? 'N/A';
 
 $asistencias = [];
 $ultimo_movimiento = null;
+$resumen_hoy = ['entradas' => 0, 'salidas' => 0];
 
 try {
     // Consultamos el historial de asistencias del alumno
-    $sql = "SELECT fecha, hora, tipo, metodo_registro 
+    // Campos reales de la tabla: id_asistencia, matricula_alumno, fecha, hora, tipo, sincronizado, registrado_en
+    $sql = "SELECT id_asistencia, fecha, hora, tipo, registrado_en 
             FROM asistencias 
             WHERE matricula_alumno = :matricula 
             ORDER BY fecha DESC, hora DESC
@@ -54,30 +47,54 @@ try {
     $stmt->execute(['matricula' => $matricula_alumno]);
     $asistencias = $stmt->fetchAll();
 
-    // Obtenemos el último registro para determinar el estatus
+    // Obtenemos el ultimo registro para determinar el estatus
     $ultimo_movimiento = !empty($asistencias) ? $asistencias[0] : null;
+
+    // Resumen del dia de hoy
+    $hoy = date('Y-m-d');
+    foreach ($asistencias as $reg) {
+        if ($reg['fecha'] === $hoy) {
+            if ($reg['tipo'] === 'Entrada') $resumen_hoy['entradas']++;
+            if ($reg['tipo'] === 'Salida') $resumen_hoy['salidas']++;
+        }
+    }
 
 } catch (PDOException $e) {
     error_log("Error en padres.php: " . $e->getMessage());
     $asistencias = [];
 }
 
-// Lógica de Estatus
+// Logica de Estatus
 $es_plantel = false;
-$mensaje_estatus = "Fuera de plantel";
+$mensaje_estatus = "Fuera del plantel";
 
 if ($ultimo_movimiento && $ultimo_movimiento['tipo'] === 'Entrada') {
-    $es_plantel = true;
-    $mensaje_estatus = "En plantel";
+    // Verificar que la entrada fue hoy para mostrar como "actualmente en plantel"
+    if ($ultimo_movimiento['fecha'] === date('Y-m-d')) {
+        $es_plantel = true;
+        $mensaje_estatus = "En el plantel";
+    }
+}
+
+// Agrupar asistencias por fecha para mejor visualizacion
+$asistencias_por_fecha = [];
+foreach ($asistencias as $reg) {
+    $fecha_key = $reg['fecha'];
+    if (!isset($asistencias_por_fecha[$fecha_key])) {
+        $asistencias_por_fecha[$fecha_key] = [];
+    }
+    $asistencias_por_fecha[$fecha_key][] = $reg;
 }
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="Portal de seguimiento de asistencias para padres de familia COBAEV">
     <meta name="theme-color" content="#5c1931">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -94,16 +111,16 @@ if ($ultimo_movimiento && $ultimo_movimiento['tipo'] === 'Entrada') {
     <!-- Fuentes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Variable JavaScript para FCM -->
     <script>
         const MATRICULA_USUARIO = "<?php echo htmlspecialchars($matricula_alumno); ?>";
         
         if (MATRICULA_USUARIO === "") {
-            console.error("⚠️ Error: La sesión no tiene matrícula definida");
+            console.error("Error: La sesion no tiene matricula definida");
         } else {
-            console.log("✅ Matrícula cargada:", MATRICULA_USUARIO);
+            console.log("Matricula cargada:", MATRICULA_USUARIO);
         }
     </script>
     
@@ -119,152 +136,278 @@ if ($ultimo_movimiento && $ultimo_movimiento['tipo'] === 'Entrada') {
         .bg-vino { background-color: #5c1931; }
         .border-vino { border-color: #5c1931; }
         .text-dorado { color: #a48253; }
+        .bg-dorado { background-color: #a48253; }
+
+        /* Smooth scrolling for mobile */
+        html { scroll-behavior: smooth; }
+        body { -webkit-tap-highlight-color: transparent; }
+        
+        /* Status pulse animation */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+        .pulse-ring-green::before { background: rgba(16, 185, 129, 0.3); }
+        .pulse-ring-gray::before { background: rgba(161, 161, 170, 0.2); }
+
+        /* Card hover for touch feedback */
+        .touch-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .touch-card:active {
+            transform: scale(0.98);
+        }
+
+        /* Timeline connector */
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 19px;
+            top: 44px;
+            bottom: -12px;
+            width: 2px;
+            background: linear-gradient(to bottom, #e4e4e7, transparent);
+        }
+        .timeline-item:last-child::before {
+            display: none;
+        }
+
+        /* Swipe hint animation */
+        @keyframes swipe-hint {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-4px); }
+        }
     </style>
 </head>
-<body class="bg-crema font-sans-clean min-h-screen flex flex-col justify-between selection:bg-red-200">
+<body class="bg-crema font-sans-clean min-h-screen flex flex-col selection:bg-red-200">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-zinc-200 px-4 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm flex-shrink-0">
-        <div class="flex items-center space-x-2">
-            <a href="index.html" class="text-zinc-400 hover:text-vino transition-colors" title="Volver al inicio">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+    <!-- Header compacto estilo app movil -->
+    <header class="bg-vino px-4 py-3 flex justify-between items-center sticky top-0 z-50 shadow-lg safe-area-top">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                 </svg>
-            </a>
+            </div>
             <div>
-                <span class="text-vino font-serif-elegant font-bold tracking-wider text-base">PORTAL DE PADRES</span>
-                <span class="text-zinc-300">|</span>
-                <span class="text-dorado font-serif-elegant italic text-sm">SGA COBAEV</span>
+                <p class="text-white font-serif-elegant font-bold text-sm tracking-wide leading-none">SGA COBAEV</p>
+                <p class="text-white/50 text-[9px] font-medium uppercase tracking-widest mt-0.5">Portal Padres</p>
             </div>
         </div>
 
-        <a href="logout.php" class="text-zinc-400 hover:text-rose-600 transition-colors" title="Cerrar sesión">
-            <div class="flex flex-col items-center">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                </svg>
-                <p class="text-[9px] font-bold uppercase">Salir</p>
-            </div>
+        <a href="logout.php" class="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors active:scale-95" title="Cerrar sesion">
+            <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
         </a>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-grow p-4 space-y-5 max-w-md w-full mx-auto overflow-y-auto">
+    <main class="flex-grow pb-6">
         
-        <!-- Tarjeta de Información del Alumno -->
-        <div class="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm text-center space-y-4">
-            <div class="space-y-1">
-                <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Alumno Monitoreado</p>
-                <h2 class="text-lg font-bold text-zinc-800 leading-tight"><?php echo htmlspecialchars($nombre_alumno); ?></h2>
-                <p class="text-xs text-zinc-500 font-mono">
-                    <?php echo htmlspecialchars($matricula_alumno); ?> • Grupo: <?php echo htmlspecialchars($grupo_alumno); ?>
-                </p>
-            </div>
+        <!-- Saludo y contexto -->
+        <div class="px-4 pt-5 pb-3">
+            <p class="text-xs text-zinc-400 font-medium">Bienvenido/a,</p>
+            <h1 class="text-lg font-bold text-zinc-800 leading-tight"><?php echo htmlspecialchars($nombre_tutor); ?></h1>
+        </div>
 
-            <div class="flex items-center space-x-3 justify-center max-w-xs mx-auto">
-                <div class="h-[1px] bg-zinc-200 flex-grow"></div>
-                <span class="text-[9px] text-zinc-300">❖</span>
-                <div class="h-[1px] bg-zinc-200 flex-grow"></div>
-            </div>
-
-            <!-- Estado en Tiempo Real -->
-            <div class="py-1">
-                <p class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Estado en Tiempo Real</p>
-                
-                <div class="text-3xl font-serif-elegant font-bold tracking-wide <?php echo $es_plantel ? 'text-emerald-700' : 'text-zinc-600'; ?>">
-                    <?php echo $mensaje_estatus; ?>
+        <!-- Tarjeta de Estado Principal -->
+        <div class="px-4 mb-4">
+            <div class="touch-card bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
+                <!-- Cabecera con datos del alumno -->
+                <div class="px-5 pt-5 pb-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#5c1931] to-[#a48253] flex items-center justify-center shadow-sm">
+                                <span class="text-white font-bold text-sm">
+                                    <?php echo mb_strtoupper(mb_substr($nombre_alumno, 0, 1)); ?>
+                                </span>
+                            </div>
+                            <div>
+                                <h2 class="text-sm font-bold text-zinc-800 leading-tight"><?php echo htmlspecialchars($nombre_alumno); ?></h2>
+                                <p class="text-[11px] text-zinc-400 font-mono mt-0.5"><?php echo htmlspecialchars($matricula_alumno); ?></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <?php if ($ultimo_movimiento): ?>
-                    <p class="text-[10px] <?php echo $es_plantel ? 'text-emerald-600' : 'text-zinc-400'; ?> font-medium mt-1 flex items-center justify-center gap-1">
-                        <?php if ($es_plantel): ?>
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <!-- Estado actual - zona destacada -->
+                <div class="mx-4 mb-4 rounded-xl p-4 <?php echo $es_plantel ? 'bg-emerald-50 border border-emerald-100' : 'bg-zinc-50 border border-zinc-100'; ?>">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <!-- Indicador con pulso -->
+                            <div class="relative flex items-center justify-center w-10 h-10">
+                                <div class="pulse-ring <?php echo $es_plantel ? 'pulse-ring-green' : 'pulse-ring-gray'; ?> absolute inset-0 rounded-full"></div>
+                                <div class="w-4 h-4 rounded-full <?php echo $es_plantel ? 'bg-emerald-500' : 'bg-zinc-300'; ?> relative z-10 shadow-sm"></div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold <?php echo $es_plantel ? 'text-emerald-800' : 'text-zinc-600'; ?> uppercase tracking-wide">
+                                    <?php echo $mensaje_estatus; ?>
+                                </p>
+                                <?php if ($ultimo_movimiento): ?>
+                                    <p class="text-[11px] <?php echo $es_plantel ? 'text-emerald-600' : 'text-zinc-400'; ?> mt-0.5">
+                                        <?php 
+                                            $hora_formato = date('h:i A', strtotime($ultimo_movimiento['hora']));
+                                            echo ($ultimo_movimiento['tipo'] === 'Entrada' ? 'Ingreso' : 'Salida') . " a las {$hora_formato}";
+                                        ?>
+                                    </p>
+                                <?php else: ?>
+                                    <p class="text-[11px] text-zinc-400 mt-0.5">Sin registros</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- Icono de tipo -->
+                        <?php if ($ultimo_movimiento): ?>
+                        <div class="w-9 h-9 rounded-lg <?php echo $es_plantel ? 'bg-emerald-100' : 'bg-zinc-100'; ?> flex items-center justify-center">
+                            <?php if ($es_plantel): ?>
+                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            <?php else: ?>
+                                <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
+                                </svg>
+                            <?php endif; ?>
+                        </div>
                         <?php endif; ?>
-                        <?php 
-                            $fecha_formato = date('d/m/Y', strtotime($ultimo_movimiento['fecha']));
-                            $hora_formato = date('h:i A', strtotime($ultimo_movimiento['hora']));
-                            echo $es_plantel ? "Ingreso registrado" : "Última salida";
-                            echo " el {$fecha_formato} a las {$hora_formato}";
-                        ?>
-                    </p>
-                <?php else: ?>
-                    <p class="text-[10px] text-zinc-400 font-medium mt-1">
-                        Sin registros de asistencia
-                    </p>
-                <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Resumen del dia -->
+                <div class="px-5 pb-5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="text-center">
+                                <p class="text-lg font-bold text-vino leading-none"><?php echo $resumen_hoy['entradas']; ?></p>
+                                <p class="text-[9px] text-zinc-400 font-medium uppercase tracking-wider mt-1">Entradas hoy</p>
+                            </div>
+                            <div class="w-px h-8 bg-zinc-100"></div>
+                            <div class="text-center">
+                                <p class="text-lg font-bold text-vino leading-none"><?php echo $resumen_hoy['salidas']; ?></p>
+                                <p class="text-[9px] text-zinc-400 font-medium uppercase tracking-wider mt-1">Salidas hoy</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-zinc-400 font-medium"><?php echo date('d \d\e M, Y'); ?></p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Historial de Accesos -->
-        <div class="space-y-3">
-            <div class="flex items-center space-x-2 px-1">
-                <span class="h-[1px] w-3 bg-dorado"></span>
-                <p class="text-[10px] font-bold tracking-widest text-dorado uppercase">Historial de Accesos</p>
+        <div class="px-4">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-1 h-4 bg-dorado rounded-full"></div>
+                    <h3 class="text-xs font-bold tracking-wide text-zinc-700 uppercase">Historial Reciente</h3>
+                </div>
+                <span class="text-[10px] text-zinc-400 font-medium"><?php echo count($asistencias); ?> registros</span>
             </div>
 
-            <div class="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm space-y-6 relative overflow-hidden">
-                
-                <?php if (!empty($asistencias)): ?>
-                    <div class="absolute top-8 bottom-8 left-9 w-[1px] bg-zinc-200"></div>
-                <?php endif; ?>
-
-                <?php if (empty($asistencias)): ?>
-                    <div class="text-center py-8">
-                        <svg class="w-12 h-12 mx-auto text-zinc-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            <?php if (empty($asistencias)): ?>
+                <!-- Estado vacio -->
+                <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm p-8 text-center">
+                    <div class="w-16 h-16 mx-auto bg-zinc-50 rounded-2xl flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <p class="text-sm text-zinc-400 font-medium">Aún no hay registros de acceso</p>
-                        <p class="text-xs text-zinc-400 mt-1">Los movimientos aparecerán aquí automáticamente</p>
                     </div>
-                <?php else: ?>
-                    <div class="space-y-3">
-                        <?php foreach ($asistencias as $registro): ?>  
-                            <div class="flex items-start space-x-4 relative z-10">
-                                <?php if ($registro['tipo'] == 'Entrada'): ?>
-                                    <div class="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                                        </svg>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="w-9 h-9 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                                        </svg>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <div class="flex-grow pt-0.5">
-                                    <div class="flex justify-between items-baseline">
-                                        <h4 class="text-xs font-bold text-zinc-800 uppercase tracking-wide">
-                                            <?php echo htmlspecialchars($registro['tipo']); ?>
-                                        </h4>
-                                        <p class="text-[11px] text-zinc-500">
-                                            <?php echo date('d/m/Y', strtotime($registro['fecha'])); ?>
-                                        </p>
-                                    </div>
-                                    <p class="text-xs font-mono font-bold text-vino mt-1">
-                                        <?php echo date('h:i A', strtotime($registro['hora'])); ?>
-                                    </p>
-                                    <?php if (isset($registro['metodo_registro'])): ?>
-                                        <p class="text-[10px] text-zinc-400 mt-0.5">
-                                            Método: <?php echo htmlspecialchars($registro['metodo_registro']); ?>
-                                        </p>
+                    <p class="text-sm font-semibold text-zinc-500">Sin registros de acceso</p>
+                    <p class="text-xs text-zinc-400 mt-1.5 max-w-[200px] mx-auto leading-relaxed">
+                        Los movimientos de entrada y salida apareceran aqui automaticamente
+                    </p>
+                </div>
+            <?php else: ?>
+                <!-- Lista agrupada por fecha -->
+                <div class="space-y-4">
+                    <?php foreach ($asistencias_por_fecha as $fecha_grupo => $registros_dia): ?>
+                        <!-- Separador de fecha -->
+                        <div class="flex items-center space-x-3">
+                            <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap">
+                                <?php 
+                                    $hoy = date('Y-m-d');
+                                    $ayer = date('Y-m-d', strtotime('-1 day'));
+                                    if ($fecha_grupo === $hoy) {
+                                        echo 'Hoy';
+                                    } elseif ($fecha_grupo === $ayer) {
+                                        echo 'Ayer';
+                                    } else {
+                                        // Formato: "Lun 16 Jun"
+                                        $dias = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+                                        $meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                                        $ts = strtotime($fecha_grupo);
+                                        echo $dias[date('w', $ts)] . ' ' . date('d', $ts) . ' ' . $meses[date('n', $ts) - 1];
+                                    }
+                                ?>
+                            </span>
+                            <div class="h-px bg-zinc-100 flex-grow"></div>
+                        </div>
+
+                        <!-- Registros del dia -->
+                        <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                            <?php foreach ($registros_dia as $idx => $registro): ?>
+                                <div class="flex items-center px-4 py-3 <?php echo $idx > 0 ? 'border-t border-zinc-50' : ''; ?>">
+                                    <!-- Icono -->
+                                    <?php if ($registro['tipo'] === 'Entrada'): ?>
+                                        <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                                            </svg>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                                            </svg>
+                                        </div>
                                     <?php endif; ?>
+
+                                    <!-- Info -->
+                                    <div class="ml-3 flex-grow min-w-0">
+                                        <p class="text-xs font-semibold text-zinc-700">
+                                            <?php echo $registro['tipo'] === 'Entrada' ? 'Entrada al plantel' : 'Salida del plantel'; ?>
+                                        </p>
+                                        <p class="text-[10px] text-zinc-400 mt-0.5">
+                                            Registrado el <?php echo date('d/m/Y', strtotime($registro['fecha'])); ?>
+                                        </p>
+                                    </div>
+
+                                    <!-- Hora -->
+                                    <div class="text-right flex-shrink-0 ml-2">
+                                        <p class="text-xs font-bold text-vino font-mono">
+                                            <?php echo date('h:i', strtotime($registro['hora'])); ?>
+                                        </p>
+                                        <p class="text-[9px] text-zinc-400 font-medium uppercase">
+                                            <?php echo date('A', strtotime($registro['hora'])); ?>
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
+
     </main>
 
-    <!-- Footer -->
-    <footer class="p-4 text-center text-[9px] text-zinc-400 uppercase tracking-widest bg-white border-t border-zinc-100 flex-shrink-0">
-        COBAEV • Sistema de Alertas de Acceso
-        <br>
-        <span class="text-zinc-300">Sesión iniciada como: <?php echo htmlspecialchars($nombre_tutor); ?></span>
+    <!-- Footer minimalista -->
+    <footer class="px-4 py-4 text-center flex-shrink-0 border-t border-zinc-100 bg-white/50">
+        <p class="text-[9px] text-zinc-400 uppercase tracking-widest">
+            COBAEV &bull; Sistema de Alertas de Acceso
+        </p>
+        <p class="text-[9px] text-zinc-300 mt-0.5">
+            Sesion: <?php echo htmlspecialchars($nombre_tutor); ?>
+        </p>
     </footer>
 
 </body>
