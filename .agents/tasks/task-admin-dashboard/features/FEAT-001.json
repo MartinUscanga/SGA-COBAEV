@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create the complete admin dashboard with all 6 PHP files in /admin/ directory: index.php (dashboard with day summary, stats, weekly chart), alumnos.php (CRUD for students), tutores.php (CRUD for tutors), asistencias.php (attendance history with filters/pagination), usuarios.php (system users CRUD), dispositivos.php (FCM tokens viewer with test notification). Each file includes: sidebar navigation, auth check, header with user info, responsive design matching project color scheme.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create admin/index.php - Dashboard principal with: session auth check (redirect to ../login_admin.php), require_once '../conexion.php', sidebar navigation with all 6 sections, header with user name and logout button, stat cards (total entradas/salidas hoy, alumnos en plantel vs fuera), ultimos movimientos table (last 10 real-time), weekly attendance chart using simple CSS/JS bars. Use Tailwind CDN, Google Fonts, project color palette.",
     "Create admin/alumnos.php - Full CRUD: list all students with search by name/matricula, inline form or modal to create new student (matricula, nombre, apellido_paterno, apellido_materno), edit existing student, delete with confirmation, show current status (en plantel/fuera based on last asistencia record). Pagination for large lists. Table columns: matricula, nombre completo, estado actual, acciones.",
@@ -35,5 +35,5 @@
     "Verify sidebar navigation exists in each file with links to all 6 pages"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 6 PHP files created and pass php -l syntax check. Each file has: session auth check, require_once conexion.php, sidebar with all 6 nav links, Tailwind CDN, Google Fonts, project color palette (crema/vino/dorado), responsive sidebar with mobile toggle. Used PDO prepared statements throughout. The match() syntax in usuarios.php requires PHP 8.0+."
 }
