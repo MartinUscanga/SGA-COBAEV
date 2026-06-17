@@ -45,23 +45,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $tutor) {
         if ($accion === 'actualizar_datos') {
             $nombre = trim($_POST['nombre_tutor'] ?? '');
             $telefono = trim($_POST['telefono'] ?? '');
+            $email = trim($_POST['email'] ?? '');
 
             // Validaciones
             if (empty($nombre) || strlen($nombre) < 3) {
                 $mensaje_error = "El nombre debe tener al menos 3 caracteres.";
             } elseif (!empty($telefono) && !preg_match('/^[0-9]{10}$/', $telefono)) {
                 $mensaje_error = "El teléfono debe tener 10 dígitos numéricos.";
+            } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $mensaje_error = "El correo electrónico no es válido.";
             } else {
-                // Actualizar TODOS los registros del mismo tutor (por nombre_tutor original)
-                $update_sql = "UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono 
-                               WHERE nombre_tutor = :nombre_original AND password_tutor = :password";
+                // Actualizar registros del tutor por matrícula (seguro)
+                $alumnos_sesion = $_SESSION['alumnos'] ?? [];
+                $matriculas_tutor = array_map(function($a) { return $a['matricula']; }, $alumnos_sesion);
+                if (empty($matriculas_tutor)) {
+                    $matriculas_tutor = [$_SESSION['alumno_matricula'] ?? ''];
+                }
+
+                $update_sql = "UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono, email = :email 
+                               WHERE matricula_alumno = :matricula";
                 $update_stmt = $pdo->prepare($update_sql);
-                $update_stmt->execute([
-                    'nombre' => $nombre,
-                    'telefono' => $telefono ?: null,
-                    'nombre_original' => $tutor['nombre_tutor'],
-                    'password' => $tutor['password_tutor']
-                ]);
+                
+                foreach ($matriculas_tutor as $mat) {
+                    $update_stmt->execute([
+                        'nombre' => $nombre,
+                        'telefono' => $telefono ?: null,
+                        'email' => $email ?: null,
+                        'matricula' => $mat
+                    ]);
+                }
 
                 // Actualizar sesion
                 $_SESSION['tutor_nombre'] = $nombre;
@@ -328,6 +340,17 @@ $alumnos_vinculados = $_SESSION['alumnos'] ?? [];
                             pattern="[0-9]*"
                             placeholder="Ej. 2281234567"
                             class="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-3 text-sm font-mono focus:outline-none focus:border-vino focus:ring-1 focus:ring-[#5c1931]/20 transition-all placeholder:text-zinc-400 placeholder:font-sans">
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5">Correo electrónico</label>
+                        <input 
+                            type="email" 
+                            name="email" 
+                            value="<?php echo htmlspecialchars($tutor['email'] ?? ''); ?>"
+                            placeholder="Ej. correo@ejemplo.com"
+                            class="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-3 text-sm focus:outline-none focus:border-vino focus:ring-1 focus:ring-[#5c1931]/20 transition-all placeholder:text-zinc-400">
                     </div>
 
                     <button type="submit" class="w-full bg-vino hover:bg-opacity-95 text-white font-bold text-xs tracking-wider uppercase py-3 rounded-lg shadow-sm active:scale-[0.98] transition-all">
