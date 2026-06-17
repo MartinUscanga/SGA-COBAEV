@@ -219,7 +219,15 @@ foreach ($asistencias as $reg) {
         </div>
 
         <div class="flex items-center space-x-2">
-            <!-- Botón de opciones -->
+            <!-- Boton de avisos/notificaciones -->
+            <button onclick="toggleAvisos()" class="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors active:scale-95 relative" title="Avisos" id="btn-avisos">
+                <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                <!-- Badge de avisos no leidos -->
+                <span id="badge-avisos" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">0</span>
+            </button>
+            <!-- Boton de opciones -->
             <button onclick="toggleMenu()" class="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors active:scale-95 relative" title="Opciones">
                 <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
@@ -227,7 +235,26 @@ foreach ($asistencias as $reg) {
             </button>
         </div>
 
-        <!-- Menú desplegable -->
+        <!-- Dropdown de avisos -->
+        <div id="panel-avisos" class="hidden absolute top-16 right-4 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden z-[100] w-80 max-h-[70vh]">
+            <div class="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-bold text-zinc-700">Avisos</p>
+                    <p class="text-[10px] text-zinc-400">Notificaciones del plantel</p>
+                </div>
+                <span id="avisos-count-header" class="text-[10px] font-bold text-zinc-400 uppercase"></span>
+            </div>
+            <div id="lista-avisos" class="overflow-y-auto max-h-[50vh]">
+                <div class="p-6 text-center">
+                    <div class="w-10 h-10 mx-auto bg-zinc-50 rounded-xl flex items-center justify-center mb-2">
+                        <svg class="w-5 h-5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    </div>
+                    <p class="text-xs text-zinc-400">Cargando avisos...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu desplegable -->
         <div id="menu-opciones" class="hidden absolute top-16 right-4 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden z-[100] w-56">
             <div class="py-1">
                 <a href="perfil_tutor.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
@@ -510,13 +537,7 @@ foreach ($asistencias as $reg) {
 
     <!-- Scripts de funcionalidad -->
     <script>
-        // Menú de opciones
-        function toggleMenu() {
-            const menu = document.getElementById('menu-opciones');
-            menu.classList.toggle('hidden');
-        }
-
-        // Cerrar menú al hacer click fuera
+        // Cerrar menu al hacer click fuera
         document.addEventListener('click', function(e) {
             const menu = document.getElementById('menu-opciones');
             const boton = e.target.closest('[onclick="toggleMenu()"]');
@@ -524,6 +545,14 @@ foreach ($asistencias as $reg) {
                 menu.classList.add('hidden');
             }
         });
+
+        // Cerrar avisos al abrir menu y viceversa
+        function toggleMenu() {
+            const menu = document.getElementById('menu-opciones');
+            const panel = document.getElementById('panel-avisos');
+            panel.classList.add('hidden');
+            menu.classList.toggle('hidden');
+        }
 
         // Reset del Service Worker
         async function resetServiceWorker() {
@@ -580,6 +609,154 @@ foreach ($asistencias as $reg) {
                 alert('Para instalar la app:\n\n• Android: Menú ⋮ → "Instalar aplicación"\n• iPhone: Compartir → "Agregar a pantalla de inicio"\n• PC: Icono ➕ en la barra de direcciones');
             }
         }
+
+        // ========== SISTEMA DE AVISOS ==========
+
+        // Toggle panel de avisos
+        function toggleAvisos() {
+            const panel = document.getElementById('panel-avisos');
+            const menu = document.getElementById('menu-opciones');
+            // Cerrar menu si esta abierto
+            menu.classList.add('hidden');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                cargarAvisos();
+            }
+        }
+
+        // Cargar avisos desde API
+        async function cargarAvisos() {
+            try {
+                const response = await fetch('api/obtener_avisos.php');
+                const data = await response.json();
+
+                if (data.success && data.avisos) {
+                    actualizarBadge(data.total);
+                    renderAvisos(data.avisos);
+                } else {
+                    renderAvisosVacio();
+                }
+            } catch (error) {
+                console.error('Error al cargar avisos:', error);
+                renderAvisosError();
+            }
+        }
+
+        // Actualizar badge de notificaciones
+        function actualizarBadge(total) {
+            const badge = document.getElementById('badge-avisos');
+            if (total > 0) {
+                badge.textContent = total > 9 ? '9+' : total;
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+            } else {
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+            }
+            const countHeader = document.getElementById('avisos-count-header');
+            countHeader.textContent = total > 0 ? total + ' nuevo(s)' : 'Sin nuevos';
+        }
+
+        // Render avisos en panel
+        function renderAvisos(avisos) {
+            const lista = document.getElementById('lista-avisos');
+            if (avisos.length === 0) {
+                renderAvisosVacio();
+                return;
+            }
+
+            let html = '';
+            avisos.forEach(aviso => {
+                const fecha = new Date(aviso.fecha_envio);
+                const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const mensajeCorto = aviso.mensaje.length > 80 ? aviso.mensaje.substring(0, 80) + '...' : aviso.mensaje;
+
+                html += '<div class="px-4 py-3 border-b border-zinc-50 hover:bg-zinc-50 transition-colors" id="aviso-' + aviso.id_aviso + '">';
+                html += '  <div class="flex items-start justify-between">';
+                html += '    <div class="flex-1 min-w-0 mr-2">';
+                html += '      <p class="text-xs font-bold text-zinc-700 truncate">' + escapeHtml(aviso.titulo) + '</p>';
+                html += '      <p class="text-[11px] text-zinc-500 mt-1 leading-relaxed">' + escapeHtml(mensajeCorto) + '</p>';
+                html += '      <p class="text-[9px] text-zinc-400 mt-1.5 uppercase tracking-wider">' + fechaStr + '</p>';
+                html += '    </div>';
+                html += '    <button onclick="marcarLeido(' + aviso.id_aviso + ')" class="flex-shrink-0 mt-0.5 w-7 h-7 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center justify-center transition-colors" title="Marcar como leido">';
+                html += '      <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+                html += '    </button>';
+                html += '  </div>';
+                html += '</div>';
+            });
+            lista.innerHTML = html;
+        }
+
+        // Avisos vacio
+        function renderAvisosVacio() {
+            const lista = document.getElementById('lista-avisos');
+            lista.innerHTML = '<div class="p-6 text-center">' +
+                '<div class="w-10 h-10 mx-auto bg-emerald-50 rounded-xl flex items-center justify-center mb-2">' +
+                '<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
+                '</div>' +
+                '<p class="text-xs font-semibold text-zinc-500">Sin avisos pendientes</p>' +
+                '<p class="text-[10px] text-zinc-400 mt-0.5">Estas al dia</p>' +
+                '</div>';
+        }
+
+        // Error al cargar
+        function renderAvisosError() {
+            const lista = document.getElementById('lista-avisos');
+            lista.innerHTML = '<div class="p-6 text-center">' +
+                '<p class="text-xs text-zinc-400">Error al cargar avisos</p>' +
+                '</div>';
+        }
+
+        // Marcar aviso como leido
+        async function marcarLeido(idAviso) {
+            try {
+                const response = await fetch('api/marcar_leido.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_aviso: idAviso })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    // Remover el aviso del panel con animacion
+                    const elem = document.getElementById('aviso-' + idAviso);
+                    if (elem) {
+                        elem.style.opacity = '0';
+                        elem.style.transform = 'translateX(20px)';
+                        elem.style.transition = 'all 0.3s ease';
+                        setTimeout(() => {
+                            elem.remove();
+                            // Recargar para actualizar badge
+                            cargarAvisos();
+                        }, 300);
+                    }
+                }
+            } catch (error) {
+                console.error('Error al marcar leido:', error);
+            }
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cerrar panel de avisos al hacer click fuera
+        document.addEventListener('click', function(e) {
+            const panel = document.getElementById('panel-avisos');
+            const btnAvisos = document.getElementById('btn-avisos');
+            if (!panel.contains(e.target) && !btnAvisos.contains(e.target)) {
+                panel.classList.add('hidden');
+            }
+        });
+
+        // Cargar avisos al iniciar la pagina
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarAvisos();
+            // Actualizar cada 60 segundos
+            setInterval(cargarAvisos, 60000);
+        });
     </script>
 
 </body>
