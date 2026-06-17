@@ -71,9 +71,54 @@ date_default_timezone_set('America/Mexico_City');
         #contenedor-ultimo-registro {
             transition: all 0.3s ease;
         }
+
+        /* Flash fullscreen al escanear (éxito) */
+        @keyframes flashGreen {
+            0% { opacity: 0; }
+            15% { opacity: 0.25; }
+            100% { opacity: 0; }
+        }
+        @keyframes flashRed {
+            0% { opacity: 0; }
+            15% { opacity: 0.25; }
+            100% { opacity: 0; }
+        }
+        .flash-success {
+            animation: flashGreen 0.8s ease-out;
+            background: #10b981;
+        }
+        .flash-error {
+            animation: flashRed 0.8s ease-out;
+            background: #ef4444;
+        }
+        .flash-exit {
+            animation: flashRed 0.8s ease-out;
+            background: #f59e0b;
+        }
+        #flash-overlay {
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            opacity: 0;
+        }
+
+        /* Bitácora con scroll suave */
+        #lista-bitacora {
+            scroll-behavior: smooth;
+        }
+
+        /* Último registro más prominente */
+        #contenedor-ultimo-registro h3 {
+            font-size: 1rem;
+            line-height: 1.3;
+        }
     </style>
 </head>
 <body class="bg-crema font-sans-clean min-h-screen flex flex-col selection:bg-red-200 overflow-hidden">
+
+    <!-- Flash overlay para feedback visual -->
+    <div id="flash-overlay"></div>
 
     <!-- NAVBAR SUPERIOR -->
     <header class="bg-white border-b border-zinc-200 px-6 py-3 flex justify-between items-center h-16 shadow-sm">
@@ -183,8 +228,13 @@ date_default_timezone_set('America/Mexico_City');
                     <span class="h-[1px] w-3 bg-dorado"></span>
                     <p class="text-[10px] font-bold tracking-widest text-dorado uppercase">Último Registro</p>
                 </div>
-                <div id="contenedor-ultimo-registro" class="bg-crema border border-zinc-200/60 rounded p-4 text-center text-sm text-zinc-500 h-28 flex items-center justify-center font-medium transition-all">
-                    Esperando primer escaneo...
+                <div id="contenedor-ultimo-registro" class="bg-crema border-2 border-dashed border-zinc-200 rounded-xl p-4 text-center text-sm text-zinc-500 h-32 flex items-center justify-center font-medium transition-all">
+                    <div class="space-y-1">
+                        <svg class="w-8 h-8 mx-auto text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p class="text-xs text-zinc-400">Esperando primer escaneo...</p>
+                    </div>
                 </div>
             </div>
 
@@ -371,6 +421,18 @@ date_default_timezone_set('America/Mexico_City');
         let esEntrada = data.title && data.title.includes('Entrada');
         let esExito = data.status === 'success';
         
+        // Flash fullscreen
+        const flash = document.getElementById('flash-overlay');
+        flash.className = '';
+        void flash.offsetWidth; // Forzar reflow
+        if (esExito && esEntrada) {
+            flash.classList.add('flash-success');
+        } else if (esExito && !esEntrada) {
+            flash.classList.add('flash-exit');
+        } else {
+            flash.classList.add('flash-error');
+        }
+        
         let borderClass = esExito ? (esEntrada ? 'border-emerald-200' : 'border-rose-200') : 'border-amber-200';
         let bgClass = esExito ? (esEntrada ? 'bg-emerald-50' : 'bg-rose-50') : 'bg-amber-50';
         let textClass = esExito ? (esEntrada ? 'text-emerald-600' : 'text-rose-600') : 'text-amber-600';
@@ -378,22 +440,29 @@ date_default_timezone_set('America/Mexico_City');
         let grupoText = data.grupo ? `• Grupo ${data.grupo}` : '';
         
         contenedor.style.opacity = '0';
+        contenedor.style.transform = 'scale(0.95)';
         setTimeout(() => {
-            contenedor.className = `bg-white border ${borderClass} ${bgClass} rounded p-3 flex items-center space-x-4 h-28 transition-all duration-300`;
+            contenedor.className = `bg-white border-2 ${borderClass} ${bgClass} rounded-xl p-4 flex items-center space-x-4 h-32 transition-all duration-300`;
             contenedor.innerHTML = `
-                <div class="w-16 h-16 rounded-full border-2 border-zinc-200 bg-zinc-100 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
+                <div class="w-16 h-16 rounded-2xl border-2 ${borderClass} ${bgClass} flex items-center justify-center flex-shrink-0">
+                    ${esExito && esEntrada 
+                        ? '<svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                        : esExito 
+                            ? '<svg class="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path></svg>'
+                            : '<svg class="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+                    }
                 </div>
                 <div class="text-left flex-grow">
-                    <span class="text-[9px] font-bold ${textClass} tracking-wider uppercase block">${titleText}</span>
-                    <h3 class="text-sm font-bold text-zinc-900 leading-tight mt-1">${data.message || 'Procesado'}</h3>
+                    <span class="text-[10px] font-bold ${textClass} tracking-wider uppercase block">${titleText}</span>
+                    <h3 class="text-base font-bold text-zinc-900 leading-tight mt-1">${data.message || 'Procesado'}</h3>
                     <p class="text-xs text-zinc-500 font-mono mt-0.5">${matricula} ${grupoText}</p>
                 </div>
-                <div class="text-right text-xs font-mono font-bold text-zinc-700">${horaActual}</div>
+                <div class="text-right flex-shrink-0">
+                    <p class="text-lg font-mono font-bold text-vino">${horaActual}</p>
+                </div>
             `;
             contenedor.style.opacity = '1';
+            contenedor.style.transform = 'scale(1)';
         }, 150);
     }
 
@@ -448,6 +517,14 @@ date_default_timezone_set('America/Mexico_City');
         const contenedor = document.getElementById('lista-bitacora');
         const nuevoHTML = crearTarjetaRegistro(registro);
         contenedor.insertAdjacentHTML('afterbegin', nuevoHTML);
+        
+        // Auto-scroll suave al tope
+        contenedor.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Animación de entrada
+        if (contenedor.firstElementChild) {
+            contenedor.firstElementChild.style.animation = 'slideInRight 0.3s ease-out';
+        }
         
         // Limitar a 20 registros visibles
         if (contenedor.children.length > 20) {
