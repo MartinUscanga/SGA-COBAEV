@@ -47,7 +47,7 @@ $stmt->execute(['fecha' => $hoy]);
 $en_plantel = $stmt->fetch()['total'];
 
 // Total alumnos registrados
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM alumnos WHERE activo = 1");
+$stmt = $pdo->query("SELECT COUNT(*) as total FROM alumnos");
 $total_alumnos = $stmt->fetch()['total'];
 
 // Alumnos fuera

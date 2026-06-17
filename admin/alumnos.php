@@ -30,39 +30,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO alumnos (matricula, nombre, apellido_paterno, apellido_materno, grupo, fecha_nacimiento, email, telefono, direccion, activo) VALUES (:matricula, :nombre, :ap, :am, :grupo, :fecha_nac, :email, :telefono, :direccion, 1)");
+            $stmt = $pdo->prepare("INSERT INTO alumnos (matricula, nombre, apellido_paterno, apellido_materno) VALUES (:matricula, :nombre, :ap, :am)");
             $stmt->execute([
                 'matricula' => strtoupper(trim($_POST['matricula'])),
                 'nombre' => trim($_POST['nombre']),
                 'ap' => trim($_POST['apellido_paterno']),
-                'am' => trim($_POST['apellido_materno']),
-                'grupo' => trim($_POST['grupo'] ?? ''),
-                'fecha_nac' => $_POST['fecha_nacimiento'] ?: null,
-                'email' => trim($_POST['email'] ?? ''),
-                'telefono' => trim($_POST['telefono'] ?? ''),
-                'direccion' => trim($_POST['direccion'] ?? '')
+                'am' => trim($_POST['apellido_materno'] ?? '')
             ]);
             $mensaje = 'Alumno registrado exitosamente.';
             $tipo_mensaje = 'success';
         } elseif ($accion === 'editar') {
-            $stmt = $pdo->prepare("UPDATE alumnos SET nombre = :nombre, apellido_paterno = :ap, apellido_materno = :am, grupo = :grupo, fecha_nacimiento = :fecha_nac, email = :email, telefono = :telefono, direccion = :direccion WHERE matricula = :matricula");
+            $stmt = $pdo->prepare("UPDATE alumnos SET nombre = :nombre, apellido_paterno = :ap, apellido_materno = :am WHERE matricula = :matricula");
             $stmt->execute([
                 'matricula' => $_POST['matricula'],
                 'nombre' => trim($_POST['nombre']),
                 'ap' => trim($_POST['apellido_paterno']),
-                'am' => trim($_POST['apellido_materno']),
-                'grupo' => trim($_POST['grupo'] ?? ''),
-                'fecha_nac' => $_POST['fecha_nacimiento'] ?: null,
-                'email' => trim($_POST['email'] ?? ''),
-                'telefono' => trim($_POST['telefono'] ?? ''),
-                'direccion' => trim($_POST['direccion'] ?? '')
+                'am' => trim($_POST['apellido_materno'] ?? '')
             ]);
             $mensaje = 'Alumno actualizado exitosamente.';
             $tipo_mensaje = 'success';
         } elseif ($accion === 'eliminar') {
-            $stmt = $pdo->prepare("UPDATE alumnos SET activo = 0 WHERE matricula = :matricula");
+            $stmt = $pdo->prepare("DELETE FROM alumnos WHERE matricula = :matricula");
             $stmt->execute(['matricula' => $_POST['matricula']]);
-            $mensaje = 'Alumno desactivado exitosamente.';
+            $mensaje = 'Alumno eliminado exitosamente.';
             $tipo_mensaje = 'success';
         }
     } catch (PDOException $e) {
@@ -78,7 +68,7 @@ $pagina = max(1, (int)($_GET['pagina'] ?? 1));
 $por_pagina = 15;
 $offset = ($pagina - 1) * $por_pagina;
 
-$where = "WHERE activo = 1";
+$where = "WHERE 1=1";
 $params = [];
 if ($busqueda !== '') {
     $where .= " AND (matricula LIKE :buscar OR nombre LIKE :buscar2 OR apellido_paterno LIKE :buscar3)";

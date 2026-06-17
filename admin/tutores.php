@@ -30,34 +30,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono_tutor, email_tutor, relacion_parentesco, activo) VALUES (:matricula, :nombre, :password, :telefono, :email, :relacion, 1)");
+            $stmt = $pdo->prepare("INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono, creado_el) VALUES (:matricula, :nombre, :password, :telefono, NOW())");
             $stmt->execute([
                 'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
                 'nombre' => trim($_POST['nombre_tutor']),
                 'password' => trim($_POST['password_tutor']),
-                'telefono' => trim($_POST['telefono_tutor'] ?? ''),
-                'email' => trim($_POST['email_tutor'] ?? ''),
-                'relacion' => trim($_POST['relacion_parentesco'] ?? '')
+                'telefono' => trim($_POST['telefono'] ?? '')
             ]);
             $mensaje = 'Tutor registrado exitosamente.';
             $tipo_mensaje = 'success';
         } elseif ($accion === 'editar') {
-            $campos = "nombre_tutor = :nombre, telefono_tutor = :telefono, email_tutor = :email, relacion_parentesco = :relacion, matricula_alumno = :matricula";
-            $params = [
-                'id' => $_POST['id_tutor'],
-                'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
+            $stmt = $pdo->prepare("UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono, matricula_alumno = :matricula WHERE id_tutor = :id");
+            $stmt->execute([
                 'nombre' => trim($_POST['nombre_tutor']),
-                'telefono' => trim($_POST['telefono_tutor'] ?? ''),
-                'email' => trim($_POST['email_tutor'] ?? ''),
-                'relacion' => trim($_POST['relacion_parentesco'] ?? '')
-            ];
-            // Solo actualizar password si se proporciona
-            if (!empty(trim($_POST['password_tutor']))) {
-                $campos .= ", password_tutor = :password";
-                $params['password'] = trim($_POST['password_tutor']);
-            }
-            $stmt = $pdo->prepare("UPDATE tutores SET $campos WHERE id_tutor = :id");
-            $stmt->execute($params);
+                'telefono' => trim($_POST['telefono'] ?? ''),
+                'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
+                'id' => $_POST['id_tutor']
+            ]);
             $mensaje = 'Tutor actualizado exitosamente.';
             $tipo_mensaje = 'success';
         } elseif ($accion === 'eliminar') {
@@ -118,7 +107,7 @@ if (isset($_GET['editar'])) {
 }
 
 // Lista de alumnos para select
-$alumnos_lista = $pdo->query("SELECT matricula, nombre, apellido_paterno FROM alumnos WHERE activo = 1 ORDER BY apellido_paterno, nombre")->fetchAll();
+$alumnos_lista = $pdo->query("SELECT matricula, nombre, apellido_paterno FROM alumnos ORDER BY apellido_paterno, nombre")->fetchAll();
 
 $pagina_actual = 'tutores';
 ?>
