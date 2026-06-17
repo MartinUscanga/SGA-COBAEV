@@ -1,0 +1,24 @@
+{
+  "project_type": "PHP + MySQL web application (XAMPP), school attendance management system (SGA COBAEV)",
+  "language": "PHP",
+  "build_system": "XAMPP (Apache + MySQL), no build step needed - plain PHP files served directly",
+  "test_framework": "None - manual testing via browser",
+  "build_command": "php -l (lint check on each PHP file)",
+  "test_command": "php -l admin/*.php (syntax check all admin files)",
+  "verification_instructions": "1. Run php -l on each created PHP file to verify no syntax errors. 2. Verify files reference correct session variables and DB connection path.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed - plain PHP files. conexion.php provides $pdo variable via PDO.",
+  "environment_constraints": "OPEN_INTERNET network. No actual MySQL database available for runtime testing - validate via PHP lint only. No composer install needed for admin dashboard (uses CDN for Tailwind).",
+  "contribution_requirements": "Maintain visual consistency with existing files: colors (#f7f3eb crema, #5c1931 vino, #a48253 dorado), fonts (Playfair Display serif, Plus Jakarta Sans), Tailwind via CDN. Use PDO prepared statements. Session auth check redirects to ../login_admin.php.",
+  "key_patterns": "1. conexion.php provides $pdo (PDO instance) - include via require_once '../conexion.php' from admin/. 2. Session vars: $_SESSION['usuario_autenticado'], $_SESSION['usuario_id'], $_SESSION['usuario_nombre'], $_SESSION['usuario_rol'], $_SESSION['username']. 3. CSS classes: .bg-crema, .text-vino, .bg-vino, .text-dorado, .font-serif-elegant, .font-sans-clean. 4. All pages use Tailwind CDN + Google Fonts. 5. login_admin.php sets session and redirects to checador.php currently. 6. Database uses PDO with FETCH_ASSOC and ERRMODE_EXCEPTION. 7. Tables: alumnos (varchar PK matricula), tutores (int PK id_tutor, FK matricula_alumno), asistencias (int PK id_asistencia, FK matricula_alumno), usuarios (int PK id_usuario), dispositivos_padres (int PK id, FK matricula_alumno, token_fcm TEXT).",
+  "relevant_files": [
+    "conexion.php",
+    "login_admin.php",
+    "logout.php",
+    "checador.php",
+    "padres.php",
+    "database_structure.sql",
+    "enviar_notificacion.php"
+  ],
+  "directory_structure": "Root: PHP files served directly. login_admin.php handles admin auth. conexion.php provides DB connection. admin/ subfolder (to be created) will contain the dashboard. config/ has service-account.json for FCM."
+}

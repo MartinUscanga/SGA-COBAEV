@@ -1,0 +1,361 @@
+<?php
+/**
+ * Gestion de Alumnos - CRUD Completo
+ * SGA COBAEV - Panel Administrativo
+ */
+session_start();
+if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
+    header("Location: ../login_admin.php");
+    exit;
+}
+
+require_once '../conexion.php';
+
+$mensaje = '';
+$tipo_mensaje = '';
+
+// Procesar acciones POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $accion = $_POST['accion'] ?? '';
+
+    try {
+        if ($accion === 'crear') {
+            $stmt = $pdo->prepare("INSERT INTO alumnos (matricula, nombre, apellido_paterno, apellido_materno, grupo, fecha_nacimiento, email, telefono, direccion, activo) VALUES (:matricula, :nombre, :ap, :am, :grupo, :fecha_nac, :email, :telefono, :direccion, 1)");
+            $stmt->execute([
+                'matricula' => strtoupper(trim($_POST['matricula'])),
+                'nombre' => trim($_POST['nombre']),
+                'ap' => trim($_POST['apellido_paterno']),
+                'am' => trim($_POST['apellido_materno']),
+                'grupo' => trim($_POST['grupo'] ?? ''),
+                'fecha_nac' => $_POST['fecha_nacimiento'] ?: null,
+                'email' => trim($_POST['email'] ?? ''),
+                'telefono' => trim($_POST['telefono'] ?? ''),
+                'direccion' => trim($_POST['direccion'] ?? '')
+            ]);
+            $mensaje = 'Alumno registrado exitosamente.';
+            $tipo_mensaje = 'success';
+        } elseif ($accion === 'editar') {
+            $stmt = $pdo->prepare("UPDATE alumnos SET nombre = :nombre, apellido_paterno = :ap, apellido_materno = :am, grupo = :grupo, fecha_nacimiento = :fecha_nac, email = :email, telefono = :telefono, direccion = :direccion WHERE matricula = :matricula");
+            $stmt->execute([
+                'matricula' => $_POST['matricula'],
+                'nombre' => trim($_POST['nombre']),
+                'ap' => trim($_POST['apellido_paterno']),
+                'am' => trim($_POST['apellido_materno']),
+                'grupo' => trim($_POST['grupo'] ?? ''),
+                'fecha_nac' => $_POST['fecha_nacimiento'] ?: null,
+                'email' => trim($_POST['email'] ?? ''),
+                'telefono' => trim($_POST['telefono'] ?? ''),
+                'direccion' => trim($_POST['direccion'] ?? '')
+            ]);
+            $mensaje = 'Alumno actualizado exitosamente.';
+            $tipo_mensaje = 'success';
+        } elseif ($accion === 'eliminar') {
+            $stmt = $pdo->prepare("UPDATE alumnos SET activo = 0 WHERE matricula = :matricula");
+            $stmt->execute(['matricula' => $_POST['matricula']]);
+            $mensaje = 'Alumno desactivado exitosamente.';
+            $tipo_mensaje = 'success';
+        }
+    } catch (PDOException $e) {
+        $mensaje = 'Error: ' . $e->getMessage();
+        $tipo_mensaje = 'error';
+    }
+}
+
+// Busqueda y paginacion
+$busqueda = trim($_GET['buscar'] ?? '');
+$pagina = max(1, (int)($_GET['pagina'] ?? 1));
+$por_pagina = 15;
+$offset = ($pagina - 1) * $por_pagina;
+
+$where = "WHERE activo = 1";
+$params = [];
+if ($busqueda !== '') {
+    $where .= " AND (matricula LIKE :buscar OR nombre LIKE :buscar2 OR apellido_paterno LIKE :buscar3)";
+    $params['buscar'] = "%$busqueda%";
+    $params['buscar2'] = "%$busqueda%";
+    $params['buscar3'] = "%$busqueda%";
+}
+
+// Total registros
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM alumnos $where");
+$stmt->execute($params);
+$total = $stmt->fetch()['total'];
+$total_paginas = ceil($total / $por_pagina);
+
+// Obtener alumnos
+$stmt = $pdo->prepare("SELECT * FROM alumnos $where ORDER BY apellido_paterno, nombre LIMIT $por_pagina OFFSET $offset");
+$stmt->execute($params);
+$alumnos = $stmt->fetchAll();
+
+// Obtener estado actual de cada alumno (en plantel o fuera)
+$hoy = date('Y-m-d');
+$estados = [];
+foreach ($alumnos as $alumno) {
+    $stmt2 = $pdo->prepare("SELECT tipo FROM asistencias WHERE matricula_alumno = :mat AND fecha = :fecha ORDER BY hora DESC LIMIT 1");
+    $stmt2->execute(['mat' => $alumno['matricula'], 'fecha' => $hoy]);
+    $ultima = $stmt2->fetch();
+    $estados[$alumno['matricula']] = $ultima ? $ultima['tipo'] : null;
+}
+
+// Alumno para editar
+$alumno_editar = null;
+if (isset($_GET['editar'])) {
+    $stmt = $pdo->prepare("SELECT * FROM alumnos WHERE matricula = :mat");
+    $stmt->execute(['mat' => $_GET['editar']]);
+    $alumno_editar = $stmt->fetch();
+}
+
+$pagina_actual = 'alumnos';
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Alumnos - Panel Admin SGA COBAEV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .font-serif-elegant { font-family: 'Playfair Display', serif; }
+        .font-sans-clean { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .bg-crema { background-color: #f7f3eb; }
+        .text-vino { color: #5c1931; }
+        .bg-vino { background-color: #5c1931; }
+        .border-vino { border-color: #5c1931; }
+        .text-dorado { color: #a48253; }
+        .bg-dorado { background-color: #a48253; }
+    </style>
+</head>
+<body class="bg-crema font-sans-clean min-h-screen flex">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-vino text-white transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out flex flex-col">
+        <div class="p-6 border-b border-white/10">
+            <h1 class="font-serif-elegant text-xl font-bold tracking-wide">SGA COBAEV</h1>
+            <p class="text-xs text-white/60 mt-1">Panel Administrativo</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-1">
+            <a href="index.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Dashboard
+            </a>
+            <a href="alumnos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium bg-white/10 text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                Alumnos
+            </a>
+            <a href="tutores.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                Tutores
+            </a>
+            <a href="asistencias.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                Asistencias
+            </a>
+            <a href="usuarios.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Usuarios
+            </a>
+            <a href="dispositivos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                Dispositivos
+            </a>
+        </nav>
+        <div class="p-4 border-t border-white/10">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
+                    <?= strtoupper(substr($_SESSION['usuario_nombre'] ?? 'A', 0, 1)) ?>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate"><?= htmlspecialchars($_SESSION['usuario_nombre'] ?? 'Admin') ?></p>
+                    <p class="text-xs text-white/50"><?= htmlspecialchars($_SESSION['usuario_rol'] ?? 'Admin') ?></p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Overlay mobile -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 md:ml-64 min-h-screen">
+        <!-- Header -->
+        <header class="bg-white border-b border-zinc-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleSidebar()" class="md:hidden text-zinc-600 hover:text-vino">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <h2 class="font-serif-elegant text-xl font-bold text-vino">Gestion de Alumnos</h2>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-sm text-zinc-500 hidden sm:inline"><?= htmlspecialchars($_SESSION['usuario_nombre'] ?? '') ?></span>
+                <a href="../logout.php" class="text-xs font-bold text-white bg-vino hover:bg-opacity-90 px-4 py-2 rounded-lg transition-colors">Cerrar Sesion</a>
+            </div>
+        </header>
+
+        <div class="p-4 md:p-8 space-y-6">
+            <!-- Mensajes -->
+            <?php if ($mensaje): ?>
+            <div class="rounded-lg p-4 text-sm font-medium <?= $tipo_mensaje === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700' ?>">
+                <?= htmlspecialchars($mensaje) ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Formulario Crear/Editar -->
+            <div class="bg-white rounded-xl border border-zinc-200 p-6">
+                <h3 class="font-serif-elegant text-lg font-bold text-vino mb-4">
+                    <?= $alumno_editar ? 'Editar Alumno' : 'Registrar Nuevo Alumno' ?>
+                </h3>
+                <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <input type="hidden" name="accion" value="<?= $alumno_editar ? 'editar' : 'crear' ?>">
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Matricula</label>
+                        <input type="text" name="matricula" required maxlength="8" 
+                               value="<?= htmlspecialchars($alumno_editar['matricula'] ?? '') ?>"
+                               <?= $alumno_editar ? 'readonly class="w-full bg-zinc-100 border border-zinc-200 rounded p-2.5 text-sm font-mono uppercase"' : 'class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm font-mono uppercase focus:outline-none focus:border-vino"' ?>>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Nombre</label>
+                        <input type="text" name="nombre" required value="<?= htmlspecialchars($alumno_editar['nombre'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Apellido Paterno</label>
+                        <input type="text" name="apellido_paterno" required value="<?= htmlspecialchars($alumno_editar['apellido_paterno'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Apellido Materno</label>
+                        <input type="text" name="apellido_materno" value="<?= htmlspecialchars($alumno_editar['apellido_materno'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Grupo</label>
+                        <input type="text" name="grupo" value="<?= htmlspecialchars($alumno_editar['grupo'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Fecha Nacimiento</label>
+                        <input type="date" name="fecha_nacimiento" value="<?= htmlspecialchars($alumno_editar['fecha_nacimiento'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Email</label>
+                        <input type="email" name="email" value="<?= htmlspecialchars($alumno_editar['email'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Telefono</label>
+                        <input type="text" name="telefono" value="<?= htmlspecialchars($alumno_editar['telefono'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Direccion</label>
+                        <input type="text" name="direccion" value="<?= htmlspecialchars($alumno_editar['direccion'] ?? '') ?>"
+                               class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <button type="submit" class="bg-vino hover:bg-opacity-90 text-white font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg transition-colors">
+                            <?= $alumno_editar ? 'Actualizar' : 'Registrar' ?>
+                        </button>
+                        <?php if ($alumno_editar): ?>
+                        <a href="alumnos.php" class="bg-zinc-200 hover:bg-zinc-300 text-zinc-700 font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg transition-colors">Cancelar</a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Busqueda -->
+            <div class="bg-white rounded-xl border border-zinc-200 p-4">
+                <form method="GET" class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" name="buscar" value="<?= htmlspecialchars($busqueda) ?>" placeholder="Buscar por nombre o matricula..."
+                           class="flex-1 bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino">
+                    <button type="submit" class="bg-dorado hover:bg-opacity-90 text-white font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg transition-colors">Buscar</button>
+                    <?php if ($busqueda): ?>
+                    <a href="alumnos.php" class="bg-zinc-200 hover:bg-zinc-300 text-zinc-700 font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg transition-colors text-center">Limpiar</a>
+                    <?php endif; ?>
+                </form>
+            </div>
+
+            <!-- Tabla de Alumnos -->
+            <div class="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-zinc-50 text-xs uppercase text-zinc-500 tracking-wide">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Matricula</th>
+                                <th class="px-4 py-3 text-left">Nombre Completo</th>
+                                <th class="px-4 py-3 text-left">Grupo</th>
+                                <th class="px-4 py-3 text-center">Estado</th>
+                                <th class="px-4 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-100">
+                            <?php if (empty($alumnos)): ?>
+                            <tr><td colspan="5" class="px-4 py-8 text-center text-zinc-400">No se encontraron alumnos</td></tr>
+                            <?php else: ?>
+                            <?php foreach ($alumnos as $al): ?>
+                            <tr class="hover:bg-zinc-50/50">
+                                <td class="px-4 py-3 font-mono text-xs font-bold text-vino"><?= htmlspecialchars($al['matricula']) ?></td>
+                                <td class="px-4 py-3 font-medium text-zinc-700"><?= htmlspecialchars($al['nombre'] . ' ' . $al['apellido_paterno'] . ' ' . $al['apellido_materno']) ?></td>
+                                <td class="px-4 py-3 text-zinc-500"><?= htmlspecialchars($al['grupo'] ?? '-') ?></td>
+                                <td class="px-4 py-3 text-center">
+                                    <?php
+                                    $estado = $estados[$al['matricula']] ?? null;
+                                    if ($estado === 'Entrada'): ?>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">En Plantel</span>
+                                    <?php elseif ($estado === 'Salida'): ?>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">Fuera</span>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-zinc-100 text-zinc-500">Sin registro</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 py-3 text-center space-x-1">
+                                    <a href="?editar=<?= urlencode($al['matricula']) ?>" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">Editar</a>
+                                    <form method="POST" class="inline" onsubmit="return confirm('Desactivar este alumno?')">
+                                        <input type="hidden" name="accion" value="eliminar">
+                                        <input type="hidden" name="matricula" value="<?= htmlspecialchars($al['matricula']) ?>">
+                                        <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100">Eliminar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginacion -->
+                <?php if ($total_paginas > 1): ?>
+                <div class="px-4 py-3 border-t border-zinc-100 flex items-center justify-between">
+                    <p class="text-xs text-zinc-500">Mostrando <?= $offset + 1 ?> - <?= min($offset + $por_pagina, $total) ?> de <?= $total ?></p>
+                    <div class="flex space-x-1">
+                        <?php if ($pagina > 1): ?>
+                        <a href="?pagina=<?= $pagina - 1 ?>&buscar=<?= urlencode($busqueda) ?>" class="px-3 py-1 rounded text-xs font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700">Anterior</a>
+                        <?php endif; ?>
+                        <?php for ($i = max(1, $pagina - 2); $i <= min($total_paginas, $pagina + 2); $i++): ?>
+                        <a href="?pagina=<?= $i ?>&buscar=<?= urlencode($busqueda) ?>" class="px-3 py-1 rounded text-xs font-medium <?= $i === $pagina ? 'bg-vino text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700' ?>"><?= $i ?></a>
+                        <?php endfor; ?>
+                        <?php if ($pagina < $total_paginas): ?>
+                        <a href="?pagina=<?= $pagina + 1 ?>&buscar=<?= urlencode($busqueda) ?>" class="px-3 py-1 rounded text-xs font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700">Siguiente</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        sidebar.classList.toggle('-translate-x-full');
+        overlay.classList.toggle('hidden');
+    }
+    </script>
+</body>
+</html>

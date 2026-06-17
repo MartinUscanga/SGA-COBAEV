@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create the complete admin dashboard with all 6 PHP files in /admin/ directory: index.php (dashboard with day summary, stats, weekly chart), alumnos.php (CRUD for students), tutores.php (CRUD for tutors), asistencias.php (attendance history with filters/pagination), usuarios.php (system users CRUD), dispositivos.php (FCM tokens viewer with test notification). Each file includes: sidebar navigation, auth check, header with user info, responsive design matching project color scheme.",
+  "status": "in_progress",
+  "steps": [
+    "Create admin/index.php - Dashboard principal with: session auth check (redirect to ../login_admin.php), require_once '../conexion.php', sidebar navigation with all 6 sections, header with user name and logout button, stat cards (total entradas/salidas hoy, alumnos en plantel vs fuera), ultimos movimientos table (last 10 real-time), weekly attendance chart using simple CSS/JS bars. Use Tailwind CDN, Google Fonts, project color palette.",
+    "Create admin/alumnos.php - Full CRUD: list all students with search by name/matricula, inline form or modal to create new student (matricula, nombre, apellido_paterno, apellido_materno), edit existing student, delete with confirmation, show current status (en plantel/fuera based on last asistencia record). Pagination for large lists. Table columns: matricula, nombre completo, estado actual, acciones.",
+    "Create admin/tutores.php - Full CRUD: list tutors with linked student info (JOIN on matricula_alumno), create new tutor (matricula_alumno, nombre_tutor, telefono, password_tutor), edit tutor, delete with confirmation, show vinculaciones (which student each tutor is linked to). Search by name or student matricula.",
+    "Create admin/asistencias.php - Attendance history: filterable table (by date range, by student matricula/name, by tipo Entrada/Salida), search functionality, pagination (20 per page), summary statistics at top (total records, entradas today, salidas today). Table columns: fecha, hora, alumno (nombre), matricula, tipo, registrado_en.",
+    "Create admin/usuarios.php - System users CRUD for the 'usuarios' table: list all users, create user (username, password_admin, nombre_completo, rol), edit user, delete with confirmation (prevent self-delete). Roles: Admin, Prefecto, Vigilante. Show ultimo_acceso. Password field for create/edit.",
+    "Create admin/dispositivos.php - FCM tokens viewer: list all registered devices from dispositivos_padres table (id, matricula_alumno, token_fcm preview, fecha_registro), show which student each device is linked to (JOIN alumnos), button to send test notification using enviar_notificacion.php pattern, delete token option.",
+    "All 6 files must share a consistent sidebar component (can be inline PHP include pattern), consistent header, consistent footer. Use the same CSS custom classes (.bg-crema, .text-vino, .bg-vino, .text-dorado, .font-serif-elegant, .font-sans-clean). Desktop-first layout with responsive mobile support (collapsible sidebar). Each file handles its own AJAX/form POST actions for CRUD operations."
+  ],
+  "acceptance_criteria": [
+    "All 6 PHP files exist in admin/ directory and pass php -l syntax check",
+    "Each file checks $_SESSION['usuario_autenticado'] and redirects to ../login_admin.php if not set",
+    "Each file includes require_once '../conexion.php' for database access",
+    "Each file has a sidebar with navigation links to all 6 admin pages",
+    "Each file uses Tailwind CSS via CDN and the project color palette (crema, vino, dorado)",
+    "Each file uses Google Fonts (Playfair Display + Plus Jakarta Sans)",
+    "index.php shows real-time stats from the database (entradas/salidas del dia, alumnos en plantel)",
+    "alumnos.php implements full CRUD (list, create, edit, delete) with search",
+    "tutores.php implements full CRUD with student linkage display",
+    "asistencias.php shows filterable paginated attendance history",
+    "usuarios.php implements full CRUD for system users with roles",
+    "dispositivos.php lists FCM tokens with send test notification capability",
+    "All database queries use PDO prepared statements via the $pdo variable from conexion.php",
+    "Responsive design works on both desktop and mobile (collapsible sidebar)"
+  ],
+  "verification": [
+    "Run: for f in /projects/sandbox/SGA-COBAEV/admin/*.php; do php -l \"$f\"; done - all files must show 'No syntax errors detected'",
+    "Verify each file contains 'session_start()' and auth check for $_SESSION['usuario_autenticado']",
+    "Verify each file contains \"require_once '../conexion.php'\"",
+    "Verify sidebar navigation exists in each file with links to all 6 pages"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

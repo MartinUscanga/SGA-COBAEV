@@ -1,0 +1,7 @@
+{
+  "task_id": "task-admin-dashboard",
+  "task_description": "Create a complete admin dashboard in /admin/ subdirectory with 6 PHP pages: index.php (dashboard summary), alumnos.php (student CRUD), tutores.php (tutor CRUD), asistencias.php (attendance history), usuarios.php (system users CRUD), dispositivos.php (FCM tokens management). All pages share consistent sidebar navigation, auth checks, and the project's visual design system.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
