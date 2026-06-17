@@ -202,11 +202,54 @@ foreach ($asistencias as $reg) {
             </div>
         </div>
 
-        <a href="logout.php" class="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors active:scale-95" title="Cerrar sesion">
-            <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-            </svg>
-        </a>
+        <div class="flex items-center space-x-2">
+            <!-- Botón de opciones -->
+            <button onclick="toggleMenu()" class="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors active:scale-95 relative" title="Opciones">
+                <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Menú desplegable -->
+        <div id="menu-opciones" class="hidden absolute top-16 right-4 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden z-[100] w-56">
+            <div class="py-1">
+                <button onclick="resetServiceWorker()" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
+                    <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-zinc-700">Actualizar sistema</p>
+                        <p class="text-[10px] text-zinc-400">Resetear notificaciones</p>
+                    </div>
+                </button>
+                <button onclick="reinstalarPWA()" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
+                    <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-zinc-700">Instalar app</p>
+                        <p class="text-[10px] text-zinc-400">Agregar a pantalla inicio</p>
+                    </div>
+                </button>
+                <div class="border-t border-zinc-100 my-1"></div>
+                <a href="logout.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-rose-50 active:bg-rose-100 transition-colors text-left">
+                    <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-rose-600">Cerrar sesión</p>
+                        <p class="text-[10px] text-zinc-400">Salir del portal</p>
+                    </div>
+                </a>
+            </div>
+        </div>
     </header>
 
     <!-- Main Content -->
@@ -409,6 +452,80 @@ foreach ($asistencias as $reg) {
             Sesion: <?php echo htmlspecialchars($nombre_tutor); ?>
         </p>
     </footer>
+
+    <!-- Scripts de funcionalidad -->
+    <script>
+        // Menú de opciones
+        function toggleMenu() {
+            const menu = document.getElementById('menu-opciones');
+            menu.classList.toggle('hidden');
+        }
+
+        // Cerrar menú al hacer click fuera
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('menu-opciones');
+            const boton = e.target.closest('[onclick="toggleMenu()"]');
+            if (!boton && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Reset del Service Worker
+        async function resetServiceWorker() {
+            const menu = document.getElementById('menu-opciones');
+            menu.classList.add('hidden');
+
+            if (!confirm('¿Actualizar el sistema de notificaciones?\n\nEsto puede resolver problemas con las alertas.')) return;
+
+            try {
+                // 1. Desregistrar Service Workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    await reg.unregister();
+                }
+
+                // 2. Limpiar cachés
+                const cacheNames = await caches.keys();
+                for (const name of cacheNames) {
+                    await caches.delete(name);
+                }
+
+                // 3. Limpiar localStorage del token para forzar re-registro
+                localStorage.removeItem('fcm_token_enviado');
+                localStorage.removeItem('fcm_matricula');
+
+                alert('Sistema actualizado correctamente.\nLa página se recargará.');
+                window.location.reload();
+            } catch (error) {
+                alert('Error al actualizar: ' + error.message);
+            }
+        }
+
+        // Instalar PWA
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        function reinstalarPWA() {
+            const menu = document.getElementById('menu-opciones');
+            menu.classList.add('hidden');
+
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(choice => {
+                    if (choice.outcome === 'accepted') {
+                        alert('¡Aplicación instalada correctamente!');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                alert('Para instalar la app:\n\n• Android: Menú ⋮ → "Instalar aplicación"\n• iPhone: Compartir → "Agregar a pantalla de inicio"\n• PC: Icono ➕ en la barra de direcciones');
+            }
+        }
+    </script>
 
 </body>
 </html>
