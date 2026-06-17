@@ -72,7 +72,18 @@ async function solicitarPermisoYRegistrar() {
             });
 
             if (currentToken) {
-                console.log("Enviando token:", currentToken);
+                // PROTECCIÓN CONTRA DUPLICADOS (Frontend):
+                // Verificar si el token ya fue enviado al servidor
+                const tokenGuardado = localStorage.getItem('fcm_token_enviado');
+                const matriculaGuardada = localStorage.getItem('fcm_matricula');
+                
+                if (tokenGuardado === currentToken && matriculaGuardada === MATRICULA_USUARIO) {
+                    console.log("✅ Token ya registrado previamente, no se reenvia.");
+                    return;
+                }
+
+                // Token nuevo o diferente → enviar al servidor
+                console.log("📡 Enviando token al servidor...");
 
                 const response = await fetch('guardar_token.php', {
                     method: 'POST',
@@ -85,8 +96,12 @@ async function solicitarPermisoYRegistrar() {
 
                 const data = await response.json();
                 console.log("Respuesta del servidor:", data);
-                if (data.debug_firebase) {
-                    console.log("Detalle de Firebase:", data.debug_firebase);
+                
+                // Si se guardó correctamente, guardar en localStorage
+                if (data.success) {
+                    localStorage.setItem('fcm_token_enviado', currentToken);
+                    localStorage.setItem('fcm_matricula', MATRICULA_USUARIO);
+                    console.log("✅ Token guardado. Status:", data.status);
                 }
             }
         }
