@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $mensaje_error = 'El titulo y mensaje son obligatorios.';
             } else {
                 try {
+                    // Guardar aviso en BD
                     $stmt = $pdo->prepare("INSERT INTO avisos (titulo, mensaje, destinatario, creado_por, fecha_envio) VALUES (:titulo, :mensaje, :destinatario, :creado_por, NOW())");
                     $stmt->execute([
                         'titulo' => $titulo,
@@ -54,7 +55,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         'destinatario' => $destinatario,
                         'creado_por' => $_SESSION['username'] ?? $_SESSION['usuario_nombre'] ?? 'admin'
                     ]);
-                    $mensaje_exito = 'Aviso enviado correctamente.';
+
+                    // Enviar notificación push a los padres afectados
+                    require_once '../enviar_notificacion.php';
+                    
+                    $tokens_enviados = 0;
+                    
+                    if ($destinatario === 'todos') {
+                        // Obtener TODOS los tokens activos
+                        $stmt_tokens = $pdo->query("SELECT DISTINCT token_fcm FROM dispositivos_padres");
+                        $tokens = $stmt_tokens->fetchAll();
+                    } else {
+                        // Obtener token de la matrícula específica
+                        $stmt_tokens = $pdo->prepare("SELECT token_fcm FROM dispositivos_padres WHERE matricula_alumno = :matricula");
+                        $stmt_tokens->execute(['matricula' => $destinatario]);
+                        $tokens = $stmt_tokens->fetchAll();
+                    }
+
+                    foreach ($tokens as $row) {
+                        if (!empty($row['token_fcm'])) {
+                            enviarAlertaFirebase($row['token_fcm'], "Tienes un nuevo aviso, revisa tu bandeja.");
+                            $tokens_enviados++;
+                        }
+                    }
+
+                    $mensaje_exito = "Aviso enviado correctamente. Notificación push enviada a {$tokens_enviados} dispositivo(s).";
                 } catch (PDOException $e) {
                     $mensaje_error = 'Error al enviar aviso: ' . $e->getMessage();
                 }
