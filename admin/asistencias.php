@@ -11,6 +11,11 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
 
 require_once '../conexion.php';
 
+// Generar token CSRF si no existe (para consistencia entre paginas)
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Filtros
 $busqueda = trim($_GET['buscar'] ?? '');
 $fecha_inicio = $_GET['fecha_inicio'] ?? '';
@@ -50,13 +55,16 @@ $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
 
 // Obtener registros
+// intval() ensures $por_pagina and $offset are safe integers for LIMIT/OFFSET
+$por_pagina_int = intval($por_pagina);
+$offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT a.*, al.nombre, al.apellido_paterno, al.apellido_materno
     FROM asistencias a
     INNER JOIN alumnos al ON a.matricula_alumno = al.matricula
     $where
     ORDER BY a.fecha DESC, a.hora DESC
-    LIMIT $por_pagina OFFSET $offset
+    LIMIT $por_pagina_int OFFSET $offset_int
 ");
 $stmt->execute($params);
 $asistencias = $stmt->fetchAll();

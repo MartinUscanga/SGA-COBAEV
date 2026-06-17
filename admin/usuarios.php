@@ -2,6 +2,7 @@
 /**
  * Gestion de Usuarios del Sistema - CRUD
  * SGA COBAEV - Panel Administrativo
+ * Solo accesible para usuarios con rol Admin
  */
 session_start();
 if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
@@ -9,13 +10,29 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
     exit;
 }
 
+// Solo el rol Admin puede gestionar usuarios
+if (!isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'Admin') {
+    header("Location: index.php");
+    exit;
+}
+
 require_once '../conexion.php';
+
+// Generar token CSRF si no existe
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 $mensaje = '';
 $tipo_mensaje = '';
 
 // Procesar acciones POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $mensaje = 'Error: token de seguridad invalido. Recargue la pagina e intente de nuevo.';
+        $tipo_mensaje = 'error';
+    } else {
     $accion = $_POST['accion'] ?? '';
 
     try {
@@ -63,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mensaje = 'Error: ' . $e->getMessage();
         $tipo_mensaje = 'error';
     }
+    } // end CSRF validation
 }
 
 // Obtener todos los usuarios
@@ -181,6 +199,7 @@ $pagina_actual = 'usuarios';
                     <?= $usuario_editar ? 'Editar Usuario' : 'Crear Nuevo Usuario' ?>
                 </h3>
                 <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="accion" value="<?= $usuario_editar ? 'editar' : 'crear' ?>">
                     <?php if ($usuario_editar): ?>
                     <input type="hidden" name="id_usuario" value="<?= $usuario_editar['id_usuario'] ?>">
@@ -200,7 +219,7 @@ $pagina_actual = 'usuarios';
                         <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">
                             Contrasena <?= $usuario_editar ? '(vacio = sin cambio)' : '' ?>
                         </label>
-                        <input type="text" name="password_admin" <?= $usuario_editar ? '' : 'required' ?>
+                        <input type="password" name="password_admin" <?= $usuario_editar ? '' : 'required' ?>
                                class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino"
                                placeholder="<?= $usuario_editar ? 'Sin cambios...' : 'Contrasena' ?>">
                     </div>
@@ -248,12 +267,20 @@ $pagina_actual = 'usuarios';
                                 <td class="px-4 py-3 font-medium text-zinc-700"><?= htmlspecialchars($u['nombre_completo']) ?></td>
                                 <td class="px-4 py-3 text-center">
                                     <?php
-                                    $rol_color = match($u['rol']) {
-                                        'Admin' => 'bg-purple-100 text-purple-700',
-                                        'Prefecto' => 'bg-blue-100 text-blue-700',
-                                        'Vigilante' => 'bg-amber-100 text-amber-700',
-                                        default => 'bg-zinc-100 text-zinc-700'
-                                    };
+                                    // PHP 7.x compatible role color mapping
+                                    switch ($u['rol']) {
+                                        case 'Admin':
+                                            $rol_color = 'bg-purple-100 text-purple-700';
+                                            break;
+                                        case 'Prefecto':
+                                            $rol_color = 'bg-blue-100 text-blue-700';
+                                            break;
+                                        case 'Vigilante':
+                                            $rol_color = 'bg-amber-100 text-amber-700';
+                                            break;
+                                        default:
+                                            $rol_color = 'bg-zinc-100 text-zinc-700';
+                                    }
                                     ?>
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold <?= $rol_color ?>"><?= htmlspecialchars($u['rol']) ?></span>
                                 </td>
@@ -262,6 +289,7 @@ $pagina_actual = 'usuarios';
                                     <a href="?editar=<?= $u['id_usuario'] ?>" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">Editar</a>
                                     <?php if ((int)$u['id_usuario'] !== (int)$_SESSION['usuario_id']): ?>
                                     <form method="POST" class="inline" onsubmit="return confirm('Eliminar este usuario?')">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                         <input type="hidden" name="accion" value="eliminar">
                                         <input type="hidden" name="id_usuario" value="<?= $u['id_usuario'] ?>">
                                         <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100">Eliminar</button>

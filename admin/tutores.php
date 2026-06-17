@@ -11,11 +11,21 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
 
 require_once '../conexion.php';
 
+// Generar token CSRF si no existe
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $mensaje = '';
 $tipo_mensaje = '';
 
 // Procesar acciones POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $mensaje = 'Error: token de seguridad invalido. Recargue la pagina e intente de nuevo.';
+        $tipo_mensaje = 'error';
+    } else {
     $accion = $_POST['accion'] ?? '';
 
     try {
@@ -60,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mensaje = 'Error: ' . $e->getMessage();
         $tipo_mensaje = 'error';
     }
+    } // end CSRF validation
 }
 
 // Busqueda y paginacion
@@ -84,13 +95,16 @@ $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
 
 // Obtener tutores con info del alumno
+// intval() ensures $por_pagina and $offset are safe integers for LIMIT/OFFSET
+$por_pagina_int = intval($por_pagina);
+$offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT t.*, a.nombre AS alumno_nombre, a.apellido_paterno AS alumno_ap, a.apellido_materno AS alumno_am
     FROM tutores t
     LEFT JOIN alumnos a ON t.matricula_alumno = a.matricula
     $where
     ORDER BY t.nombre_tutor
-    LIMIT $por_pagina OFFSET $offset
+    LIMIT $por_pagina_int OFFSET $offset_int
 ");
 $stmt->execute($params);
 $tutores = $stmt->fetchAll();
@@ -210,6 +224,7 @@ $pagina_actual = 'tutores';
                     <?= $tutor_editar ? 'Editar Tutor' : 'Registrar Nuevo Tutor' ?>
                 </h3>
                 <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="accion" value="<?= $tutor_editar ? 'editar' : 'crear' ?>">
                     <?php if ($tutor_editar): ?>
                     <input type="hidden" name="id_tutor" value="<?= $tutor_editar['id_tutor'] ?>">
@@ -255,7 +270,7 @@ $pagina_actual = 'tutores';
                         <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">
                             Contrasena <?= $tutor_editar ? '(dejar vacio para no cambiar)' : '' ?>
                         </label>
-                        <input type="text" name="password_tutor" <?= $tutor_editar ? '' : 'required' ?>
+                        <input type="password" name="password_tutor" <?= $tutor_editar ? '' : 'required' ?>
                                class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 text-sm focus:outline-none focus:border-vino"
                                placeholder="<?= $tutor_editar ? 'Sin cambios...' : 'Contrasena de acceso' ?>">
                     </div>
@@ -310,6 +325,7 @@ $pagina_actual = 'tutores';
                                 <td class="px-4 py-3 text-center space-x-1">
                                     <a href="?editar=<?= $t['id_tutor'] ?>" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">Editar</a>
                                     <form method="POST" class="inline" onsubmit="return confirm('Eliminar este tutor?')">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                         <input type="hidden" name="accion" value="eliminar">
                                         <input type="hidden" name="id_tutor" value="<?= $t['id_tutor'] ?>">
                                         <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100">Eliminar</button>

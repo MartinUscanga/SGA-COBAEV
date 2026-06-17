@@ -11,11 +11,21 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
 
 require_once '../conexion.php';
 
+// Generar token CSRF si no existe
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $mensaje = '';
 $tipo_mensaje = '';
 
 // Procesar acciones POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $mensaje = 'Error: token de seguridad invalido. Recargue la pagina e intente de nuevo.';
+        $tipo_mensaje = 'error';
+    } else {
     $accion = $_POST['accion'] ?? '';
 
     try {
@@ -59,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mensaje = 'Error: ' . $e->getMessage();
         $tipo_mensaje = 'error';
     }
+    } // end CSRF validation
 }
 
 // Busqueda y paginacion
@@ -83,18 +94,35 @@ $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
 
 // Obtener alumnos
-$stmt = $pdo->prepare("SELECT * FROM alumnos $where ORDER BY apellido_paterno, nombre LIMIT $por_pagina OFFSET $offset");
+// intval() ensures $por_pagina and $offset are safe integers for LIMIT/OFFSET
+$por_pagina_int = intval($por_pagina);
+$offset_int = intval($offset);
+$stmt = $pdo->prepare("SELECT * FROM alumnos $where ORDER BY apellido_paterno, nombre LIMIT $por_pagina_int OFFSET $offset_int");
 $stmt->execute($params);
 $alumnos = $stmt->fetchAll();
 
-// Obtener estado actual de cada alumno (en plantel o fuera)
+// Obtener estado actual de cada alumno usando una sola consulta (evita N+1)
 $hoy = date('Y-m-d');
 $estados = [];
-foreach ($alumnos as $alumno) {
-    $stmt2 = $pdo->prepare("SELECT tipo FROM asistencias WHERE matricula_alumno = :mat AND fecha = :fecha ORDER BY hora DESC LIMIT 1");
-    $stmt2->execute(['mat' => $alumno['matricula'], 'fecha' => $hoy]);
-    $ultima = $stmt2->fetch();
-    $estados[$alumno['matricula']] = $ultima ? $ultima['tipo'] : null;
+if (!empty($alumnos)) {
+    $matriculas = array_column($alumnos, 'matricula');
+    $placeholders = implode(',', array_fill(0, count($matriculas), '?'));
+    $stmt2 = $pdo->prepare("
+        SELECT a.matricula_alumno, a.tipo
+        FROM asistencias a
+        INNER JOIN (
+            SELECT matricula_alumno, MAX(hora) as max_hora
+            FROM asistencias
+            WHERE fecha = ? AND matricula_alumno IN ($placeholders)
+            GROUP BY matricula_alumno
+        ) ultimo ON a.matricula_alumno = ultimo.matricula_alumno AND a.hora = ultimo.max_hora AND a.fecha = ?
+    ");
+    $bind_params = array_merge([$hoy], $matriculas, [$hoy]);
+    $stmt2->execute($bind_params);
+    $resultados_estado = $stmt2->fetchAll();
+    foreach ($resultados_estado as $row) {
+        $estados[$row['matricula_alumno']] = $row['tipo'];
+    }
 }
 
 // Alumno para editar
@@ -209,6 +237,7 @@ $pagina_actual = 'alumnos';
                     <?= $alumno_editar ? 'Editar Alumno' : 'Registrar Nuevo Alumno' ?>
                 </h3>
                 <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="accion" value="<?= $alumno_editar ? 'editar' : 'crear' ?>">
                     
                     <div>
@@ -316,6 +345,7 @@ $pagina_actual = 'alumnos';
                                 <td class="px-4 py-3 text-center space-x-1">
                                     <a href="?editar=<?= urlencode($al['matricula']) ?>" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">Editar</a>
                                     <form method="POST" class="inline" onsubmit="return confirm('Desactivar este alumno?')">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                         <input type="hidden" name="accion" value="eliminar">
                                         <input type="hidden" name="matricula" value="<?= htmlspecialchars($al['matricula']) ?>">
                                         <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100">Eliminar</button>

@@ -11,6 +11,11 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
 
 require_once '../conexion.php';
 
+// Generar token CSRF si no existe (para consistencia entre paginas)
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Obtener estadisticas del dia
 $hoy = date('Y-m-d');
 

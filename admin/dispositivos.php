@@ -11,11 +11,21 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
 
 require_once '../conexion.php';
 
+// Generar token CSRF si no existe
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $mensaje = '';
 $tipo_mensaje = '';
 
 // Procesar acciones POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $mensaje = 'Error: token de seguridad invalido. Recargue la pagina e intente de nuevo.';
+        $tipo_mensaje = 'error';
+    } else {
     $accion = $_POST['accion'] ?? '';
 
     try {
@@ -104,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mensaje = 'Error al enviar notificacion: ' . $e->getMessage();
         $tipo_mensaje = 'error';
     }
+    } // end CSRF validation
 }
 
 // Busqueda y paginacion
@@ -128,13 +139,16 @@ $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
 
 // Obtener dispositivos con info del alumno
+// intval() ensures $por_pagina and $offset are safe integers for LIMIT/OFFSET
+$por_pagina_int = intval($por_pagina);
+$offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT dp.*, a.nombre AS alumno_nombre, a.apellido_paterno AS alumno_ap, a.apellido_materno AS alumno_am
     FROM dispositivos_padres dp
     LEFT JOIN alumnos a ON dp.matricula_alumno = a.matricula
     $where
     ORDER BY dp.fecha_registro DESC
-    LIMIT $por_pagina OFFSET $offset
+    LIMIT $por_pagina_int OFFSET $offset_int
 ");
 $stmt->execute($params);
 $dispositivos = $stmt->fetchAll();
@@ -296,6 +310,7 @@ $pagina_actual = 'dispositivos';
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex items-center justify-center space-x-1">
                                         <form method="POST" class="inline">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                             <input type="hidden" name="accion" value="test_notificacion">
                                             <input type="hidden" name="id_dispositivo" value="<?= $d['id'] ?>">
                                             <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100" title="Enviar notificacion de prueba">
@@ -304,6 +319,7 @@ $pagina_actual = 'dispositivos';
                                             </button>
                                         </form>
                                         <form method="POST" class="inline" onsubmit="return confirm('Eliminar este dispositivo?')">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                             <input type="hidden" name="accion" value="eliminar">
                                             <input type="hidden" name="id_dispositivo" value="<?= $d['id'] ?>">
                                             <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100">
