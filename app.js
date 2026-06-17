@@ -73,17 +73,19 @@ async function solicitarPermisoYRegistrar() {
 
             if (currentToken) {
                 // PROTECCIÓN CONTRA DUPLICADOS (Frontend):
-                // Verificar si el token ya fue enviado al servidor
+                // Solo prevenir llamadas repetidas desde EL MISMO dispositivo
+                // NO bloquear si es un dispositivo nuevo (el localStorage es diferente)
                 const tokenGuardado = localStorage.getItem('fcm_token_enviado');
                 const matriculaGuardada = localStorage.getItem('fcm_matricula');
                 
                 if (tokenGuardado === currentToken && matriculaGuardada === MATRICULA_USUARIO) {
-                    console.log("✅ Token ya registrado previamente, no se reenvia.");
+                    console.log("✅ Token ya registrado desde este dispositivo, no se reenvia.");
                     return;
                 }
 
-                // Token nuevo o diferente → enviar al servidor
-                console.log("📡 Enviando token al servidor...");
+                // Token nuevo o dispositivo diferente → enviar al servidor
+                console.log("📡 Enviando token al servidor (nuevo o diferente)...");
+                console.log("Token preview:", currentToken.substring(0, 30) + "...");
 
                 const response = await fetch('guardar_token.php', {
                     method: 'POST',
@@ -97,12 +99,16 @@ async function solicitarPermisoYRegistrar() {
                 const data = await response.json();
                 console.log("Respuesta del servidor:", data);
                 
-                // Si se guardó correctamente, guardar en localStorage
+                // Guardar en localStorage SOLO si se guardó correctamente
                 if (data.success) {
                     localStorage.setItem('fcm_token_enviado', currentToken);
                     localStorage.setItem('fcm_matricula', MATRICULA_USUARIO);
                     console.log("✅ Token guardado. Status:", data.status);
+                } else {
+                    console.error("❌ Error al guardar token:", data.message);
                 }
+            } else {
+                console.warn("⚠️ No se pudo obtener token FCM. Verifica permisos y Service Worker.");
             }
         }
     } catch (err) {
