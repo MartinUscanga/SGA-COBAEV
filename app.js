@@ -130,15 +130,18 @@ async function solicitarPermisoYRegistrar() {
 onMessage(messaging, (payload) => {
     console.log('Mensaje recibido en primer plano:', payload);
 
-    if (Notification.permission === 'granted') {
+    if (Notification.permission === 'granted' && payload.notification) {
         const title = payload.notification.title;
         const options = {
             body: payload.notification.body,
             icon: '/logo.png',
-            tag: 'cobaev-' + Date.now()
+            tag: 'cobaev-foreground' // Tag fijo para evitar duplicados con SW
         };
 
-        new Notification(title, options);
+        // Usar Service Worker para mostrar (evita duplicados)
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification(title, options);
+        });
     }
 });
 
