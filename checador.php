@@ -366,7 +366,7 @@ date_default_timezone_set('America/Mexico_City');
     // ============================================
     function actualizarUIRespuesta(data, matricula) {
         const contenedor = document.getElementById('contenedor-ultimo-registro');
-        const horaActual = document.getElementById('reloj').innerText;
+        const horaActual = data.hora || document.getElementById('reloj').innerText;
         
         let esEntrada = data.title && data.title.includes('Entrada');
         let esExito = data.status === 'success';
@@ -375,6 +375,7 @@ date_default_timezone_set('America/Mexico_City');
         let bgClass = esExito ? (esEntrada ? 'bg-emerald-50' : 'bg-rose-50') : 'bg-amber-50';
         let textClass = esExito ? (esEntrada ? 'text-emerald-600' : 'text-rose-600') : 'text-amber-600';
         let titleText = esExito ? (esEntrada ? 'ENTRADA REGISTRADA' : 'SALIDA REGISTRADA') : 'ATENCIÓN';
+        let grupoText = data.grupo ? `• Grupo ${data.grupo}` : '';
         
         contenedor.style.opacity = '0';
         setTimeout(() => {
@@ -388,7 +389,7 @@ date_default_timezone_set('America/Mexico_City');
                 <div class="text-left flex-grow">
                     <span class="text-[9px] font-bold ${textClass} tracking-wider uppercase block">${titleText}</span>
                     <h3 class="text-sm font-bold text-zinc-900 leading-tight mt-1">${data.message || 'Procesado'}</h3>
-                    <p class="text-xs text-zinc-500 font-mono mt-0.5">Matrícula: ${matricula}</p>
+                    <p class="text-xs text-zinc-500 font-mono mt-0.5">${matricula} ${grupoText}</p>
                 </div>
                 <div class="text-right text-xs font-mono font-bold text-zinc-700">${horaActual}</div>
             `;
@@ -464,7 +465,7 @@ date_default_timezone_set('America/Mexico_City');
                     </div>
                     <div>
                         <h4 class="text-sm font-bold text-zinc-900 leading-tight">${r.nombre} ${r.apellido_paterno} ${r.apellido_materno || ''}</h4>
-                        <p class="text-xs font-mono text-zinc-500 mt-0.5">${r.matricula_alumno}</p>
+                        <p class="text-xs font-mono text-zinc-500 mt-0.5">${r.matricula_alumno} ${r.grupo ? '• Grupo ' + r.grupo : ''}</p>
                     </div>
                 </div>
                 <div class="text-right">

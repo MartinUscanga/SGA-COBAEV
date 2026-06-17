@@ -8,7 +8,7 @@ require 'enviar_notificacion.php';
 
 // --- FUNCIONES ---
 function obtenerBitacora($pdo) {
-    $sql = "SELECT a.nombre, a.apellido_paterno, a.apellido_materno, asis.matricula_alumno, asis.tipo, asis.hora 
+    $sql = "SELECT a.nombre, a.apellido_paterno, a.apellido_materno, a.grupo, asis.matricula_alumno, asis.tipo, asis.hora 
             FROM asistencias asis
             JOIN alumnos a ON asis.matricula_alumno = a.matricula
             ORDER BY asis.id_asistencia DESC LIMIT 5";
@@ -29,7 +29,7 @@ $fecha_hoy = date('Y-m-d');
 $hora_actual = date('H:i:s');
 
 try {
-    $stmt_alumno = $pdo->prepare("SELECT nombre, apellido_paterno, apellido_materno FROM alumnos WHERE matricula = :matricula LIMIT 1");
+    $stmt_alumno = $pdo->prepare("SELECT nombre, apellido_paterno, apellido_materno, grupo, turno FROM alumnos WHERE matricula = :matricula LIMIT 1");
     $stmt_alumno->execute(['matricula' => $matricula]);
     $alumno = $stmt_alumno->fetch(PDO::FETCH_ASSOC);
 
@@ -39,7 +39,10 @@ try {
     }
 
     $nombre_completo = $alumno['nombre'] . ' ' . $alumno['apellido_paterno']. ' ' .$alumno['apellido_materno'];
+    $grupo_alumno = $alumno['grupo'] ?? '';
+    $turno_alumno = $alumno['turno'] ?? '';
     $token = obtenerTokenPadre($pdo, $matricula);
+    $hora_formato = date('h:i A', strtotime($hora_actual));
 
     // --- REVISAR ENTRADA ---
     $stmt_entrada = $pdo->prepare("SELECT id_asistencia FROM asistencias WHERE matricula_alumno = :matricula AND fecha = :fecha AND tipo = 'Entrada' LIMIT 1");
@@ -50,14 +53,17 @@ try {
             ->execute(['matricula' => $matricula, 'fecha' => $fecha_hoy, 'hora' => $hora_actual]);
 
         if ($token) {
-            $msg = "Hola, $nombre_completo acaba de ingresar al plantel.";
+            $msg = "$nombre_completo ingresó al plantel a las $hora_formato.";
             $res = enviarAlertaFirebase($token, $msg);
             error_log("Firebase Entrada ($matricula): " . $res);
         }
 
         echo json_encode([
             'status' => 'success', 'icon' => 'success', 'title' => '¡Entrada Registrada!',
-            'message' => "Bienvenido: $nombre_completo<br>Hora: " . date('h:i A', strtotime($hora_actual)),
+            'message' => "Bienvenido: $nombre_completo",
+            'grupo' => $grupo_alumno,
+            'turno' => $turno_alumno,
+            'hora' => $hora_formato,
             'bitacora' => obtenerBitacora($pdo)
         ]);
         exit;
@@ -72,14 +78,17 @@ try {
             ->execute(['matricula' => $matricula, 'fecha' => $fecha_hoy, 'hora' => $hora_actual]);
 
         if ($token) {
-            $msg = "Aviso: $nombre_completo acaba de salir del plantel.";
+            $msg = "$nombre_completo salió del plantel a las $hora_formato.";
             $res = enviarAlertaFirebase($token, $msg);
             error_log("Firebase Salida ($matricula): " . $res);
         }
 
         echo json_encode([
             'status' => 'success', 'icon' => 'info', 'title' => '¡Salida Registrada!',
-            'message' => "Hasta luego: $nombre_completo<br>Hora: " . date('h:i A', strtotime($hora_actual)),
+            'message' => "Hasta luego: $nombre_completo",
+            'grupo' => $grupo_alumno,
+            'turno' => $turno_alumno,
+            'hora' => $hora_formato,
             'bitacora' => obtenerBitacora($pdo)
         ]);
         exit;
@@ -89,6 +98,7 @@ try {
     echo json_encode([
         'status' => 'warning', 'icon' => 'warning', 'title' => 'Ciclo Completado',
         'message' => "El alumno $nombre_completo ya cuenta con registros de Entrada y Salida hoy.",
+        'grupo' => $grupo_alumno,
         'bitacora' => obtenerBitacora($pdo)
     ]);
 
