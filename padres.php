@@ -17,7 +17,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Protegemos la página: verificar autenticación
 if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
-    header("Location: login_padres_mejorado.php");
+    header("Location: login_padres.php");
     exit;
 }
 
@@ -25,7 +25,7 @@ if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !==
 if (isset($_SESSION['ultima_actividad']) && (time() - $_SESSION['ultima_actividad'] > 1800)) {
     session_unset();
     session_destroy();
-    header("Location: login_padres_mejorado.php?timeout=1");
+    header("Location: login_padres.php?timeout=1");
     exit;
 }
 $_SESSION['ultima_actividad'] = time();
@@ -78,6 +78,9 @@ if ($ultimo_movimiento && $ultimo_movimiento['tipo'] === 'Entrada') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Portal de seguimiento de asistencias para padres de familia COBAEV">
     <meta name="theme-color" content="#5c1931">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Portal de Padres - COBAEV</title>
     
     <!-- PWA Manifest -->

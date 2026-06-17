@@ -1,5 +1,5 @@
-// [sw.js] - Versión 1.1
-const SW_VERSION = 'v1.1';
+// [sw.js] - Versión 1.2
+const SW_VERSION = 'v1.2';
 console.log('[SW] Versión:', SW_VERSION);
 
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
@@ -16,12 +16,25 @@ const messaging = firebase.messaging();
 
 // Activar inmediatamente la nueva versión del SW
 self.addEventListener('install', (event) => {
-    console.log('[SW] Instalando nueva versión...');
-    self.skipWaiting(); // Salta la espera y activa inmediatamente
+    console.log('[SW] Instalando versión:', SW_VERSION);
+    // Limpiar cachés antiguas para evitar conflictos
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    console.log('[SW] Eliminando cache antigua:', cacheName);
+                    return caches.delete(cacheName);
+                })
+            );
+        }).then(() => {
+            console.log('[SW] Cachés limpiadas. Activando inmediatamente...');
+            return self.skipWaiting();
+        })
+    );
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activado. Tomando control de las páginas...');
+    console.log('[SW] Activado versión:', SW_VERSION);
     event.waitUntil(
         clients.claim() // Toma control de todas las páginas inmediatamente
     );

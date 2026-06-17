@@ -1,7 +1,12 @@
 // Registramos el Service Worker con actualización automática
 if ('serviceWorker' in navigator) {
+    // Forzar actualización de SWs existentes ANTES de registrar
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(reg => reg.update());
+    });
+
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
             .then(reg => {
                 console.log('✅ Service Worker registrado');
                 
@@ -9,6 +14,9 @@ if ('serviceWorker' in navigator) {
                 setInterval(() => {
                     reg.update();
                 }, 60000);
+                
+                // Forzar una actualización inmediata al cargar
+                reg.update();
                 
                 // Actualizar al detectar cambios
                 reg.addEventListener('updatefound', () => {
@@ -18,7 +26,6 @@ if ('serviceWorker' in navigator) {
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             console.log('✅ Service Worker actualizado. Recargando página...');
-                            // Recargar la página automáticamente para usar la nueva versión
                             window.location.reload();
                         }
                     });
