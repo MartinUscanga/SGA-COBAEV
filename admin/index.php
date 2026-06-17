@@ -29,21 +29,20 @@ $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM asistencias WHERE fecha = :
 $stmt->execute(['fecha' => $hoy]);
 $salidas_hoy = $stmt->fetch()['total'];
 
-// Alumnos actualmente en el plantel (tienen entrada sin salida posterior)
+// Alumnos actualmente en el plantel
+// Lógica: alumnos cuyo ÚLTIMO registro del día es una Entrada
 $stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT a1.matricula_alumno) as total
-    FROM asistencias a1
-    WHERE a1.fecha = :fecha
-    AND a1.tipo = 'Entrada'
-    AND NOT EXISTS (
-        SELECT 1 FROM asistencias a2
-        WHERE a2.matricula_alumno = a1.matricula_alumno
-        AND a2.fecha = a1.fecha
-        AND a2.tipo = 'Salida'
-        AND a2.hora > a1.hora
-    )
+    SELECT COUNT(*) as total FROM (
+        SELECT matricula_alumno, tipo
+        FROM asistencias
+        WHERE fecha = :fecha
+        AND id_asistencia IN (
+            SELECT MAX(id_asistencia) FROM asistencias WHERE fecha = :fecha2 GROUP BY matricula_alumno
+        )
+        HAVING tipo = 'Entrada'
+    ) as en_plantel
 ");
-$stmt->execute(['fecha' => $hoy]);
+$stmt->execute(['fecha' => $hoy, 'fecha2' => $hoy]);
 $en_plantel = $stmt->fetch()['total'];
 
 // Total alumnos registrados

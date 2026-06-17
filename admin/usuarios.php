@@ -10,8 +10,8 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
     exit;
 }
 
-// Solo el rol Admin puede gestionar usuarios
-if (!isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'Admin') {
+// Solo los roles Admin y Prefecto pueden gestionar usuarios
+if (!isset($_SESSION['usuario_rol']) || !in_array($_SESSION['usuario_rol'], ['Admin', 'Prefecto'])) {
     header("Location: index.php");
     exit;
 }
