@@ -1,0 +1,25 @@
+{
+  "project_type": "PHP + JavaScript PWA with MySQL (XAMPP)",
+  "language": "PHP 7+ / JavaScript ES6 modules",
+  "build_system": "None - raw PHP files served by XAMPP Apache",
+  "test_framework": "None - no automated tests",
+  "build_command": "php -l (syntax check on modified files)",
+  "test_command": "php -l on each modified PHP file",
+  "verification_instructions": "Run php -l on each modified PHP file to verify no syntax errors. Manually verify logic flow.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed - files are served directly by XAMPP/Apache",
+  "environment_constraints": "OPEN_INTERNET network mode. No database available for runtime testing - validate with syntax checks only.",
+  "contribution_requirements": "Maintain existing CSS style conventions (bg-crema, text-vino, bg-vino, text-dorado, font-serif-elegant, font-sans-clean). Keep Tailwind CSS via CDN. Keep mobile-first approach.",
+  "key_patterns": "PDO with prepared statements via conexion.php ($pdo variable). Session-based auth with $_SESSION['tutor_autenticado']. Inline CSS/Tailwind classes. Spanish comments. ob_start()/ob_end_flush() pattern for pages with redirects. MATRICULA_USUARIO JS global set from PHP session.",
+  "relevant_files": [
+    "/projects/sandbox/SGA-COBAEV/login_padres.php",
+    "/projects/sandbox/SGA-COBAEV/padres.php",
+    "/projects/sandbox/SGA-COBAEV/perfil_tutor.php",
+    "/projects/sandbox/SGA-COBAEV/app.js",
+    "/projects/sandbox/SGA-COBAEV/guardar_token.php",
+    "/projects/sandbox/SGA-COBAEV/conexion.php",
+    "/projects/sandbox/SGA-COBAEV/logout.php",
+    "/projects/sandbox/SGA-COBAEV/database_structure.sql"
+  ],
+  "directory_structure": "Flat PHP project at /projects/sandbox/SGA-COBAEV/. All PHP files in root. config/ has service-account example. PWA files: sw.js, manifest.json, app.js. Database: MySQL sga_cobaev with tables: alumnos, tutores, asistencias, dispositivos_padres (runtime) / tokens_fcm (in SQL schema)."
+}

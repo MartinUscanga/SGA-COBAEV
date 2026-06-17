@@ -150,6 +150,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $tutor) {
                     }
                 }
             }
+
+        } elseif ($accion === 'desvincular_alumno') {
+            $matricula_desvincular = strtoupper(trim($_POST['matricula_desvincular'] ?? ''));
+            
+            // No permitir desvincular si solo queda 1 alumno
+            $alumnos_actuales = $_SESSION['alumnos'] ?? [];
+            
+            if (count($alumnos_actuales) <= 1) {
+                $mensaje_error = "No puedes desvincular tu único alumno.";
+            } elseif (empty($matricula_desvincular)) {
+                $mensaje_error = "Matrícula inválida.";
+            } else {
+                // Verificar que la matrícula está vinculada al tutor
+                $check_vinculo = $pdo->prepare("SELECT id_tutor FROM tutores WHERE nombre_tutor = :nombre AND matricula_alumno = :matricula");
+                $check_vinculo->execute([
+                    'nombre' => $tutor['nombre_tutor'],
+                    'matricula' => $matricula_desvincular
+                ]);
+                $vinculo = $check_vinculo->fetch();
+
+                if (!$vinculo) {
+                    $mensaje_error = "Esta matrícula no está vinculada a su cuenta.";
+                } else {
+                    // Eliminar el registro del tutor para esa matrícula
+                    $delete_sql = "DELETE FROM tutores WHERE nombre_tutor = :nombre AND matricula_alumno = :matricula";
+                    $delete_stmt = $pdo->prepare($delete_sql);
+                    $delete_stmt->execute([
+                        'nombre' => $tutor['nombre_tutor'],
+                        'matricula' => $matricula_desvincular
+                    ]);
+
+                    // Eliminar token FCM asociado
+                    $delete_token = $pdo->prepare("DELETE FROM dispositivos_padres WHERE matricula_alumno = :matricula");
+                    $delete_token->execute(['matricula' => $matricula_desvincular]);
+
+                    // Actualizar la sesión (remover del array)
+                    $_SESSION['alumnos'] = array_values(array_filter($_SESSION['alumnos'], function($a) use ($matricula_desvincular) {
+                        return $a['matricula'] !== $matricula_desvincular;
+                    }));
+
+                    // Si el alumno desvinculado era el activo, cambiar al primero
+                    if ($_SESSION['alumno_matricula'] === $matricula_desvincular && !empty($_SESSION['alumnos'])) {
+                        $_SESSION['alumno_matricula'] = $_SESSION['alumnos'][0]['matricula'];
+                        $_SESSION['alumno_nombre'] = $_SESSION['alumnos'][0]['nombre_completo'];
+                    }
+
+                    $mensaje_exito = "Alumno desvinculado correctamente.";
+                }
+            }
         }
     } catch (PDOException $e) {
         error_log("Error perfil_tutor.php (UPDATE): " . $e->getMessage());
@@ -368,6 +417,17 @@ $alumnos_vinculados = $_SESSION['alumnos'] ?? [];
                                     </div>
                                     <?php if ($av['matricula'] === $matricula_alumno): ?>
                                         <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">Activo</span>
+                                    <?php endif; ?>
+                                    <?php if (count($alumnos_vinculados) > 1): ?>
+                                        <form method="POST" class="flex-shrink-0" onsubmit="return confirm('¿Desvincular a <?php echo htmlspecialchars($av['nombre_completo']); ?>?\n\nDejarás de recibir notificaciones de este alumno.');">
+                                            <input type="hidden" name="accion" value="desvincular_alumno">
+                                            <input type="hidden" name="matricula_desvincular" value="<?php echo htmlspecialchars($av['matricula']); ?>">
+                                            <button type="submit" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 flex items-center justify-center transition-colors active:scale-95" title="Desvincular">
+                                                <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>

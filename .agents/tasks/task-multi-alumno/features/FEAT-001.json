@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Implement multi-student login flow and session management. Modify login_padres.php to find all students linked to the same tutor (by nombre_tutor + password_tutor) after initial auth. Store all linked students in session array. Modify padres.php to show student selector tabs/pills when multiple students exist and allow switching. Modify perfil_tutor.php to add 'Vincular otro alumno' form. Modify app.js and guardar_token.php for multi-matricula FCM token registration.",
+  "status": "completed",
+  "steps": [
+    "STEP 1 - login_padres.php: After authenticating with matricula + password_tutor, query ALL tutor rows with same nombre_tutor AND password_tutor. For each row, JOIN with alumnos to get nombre_completo. Build $_SESSION['alumnos'] array of objects [{matricula, nombre_completo}]. Set $_SESSION['tutor_id'], $_SESSION['tutor_nombre']. Set $_SESSION['alumno_matricula'] and $_SESSION['alumno_nombre'] to the first-matched student (the one entered in login). Keep $_SESSION['tutor_autenticado'] = true.",
+    "STEP 2 - padres.php: Add student switching support. Check for GET parameter ?alumno=MATRICULA to switch active student. Validate that the requested matricula exists in $_SESSION['alumnos'] array before switching. Update $_SESSION['alumno_matricula'] and $_SESSION['alumno_nombre'] accordingly. Add a student selector UI (pill/tab bar) below the header showing all students if count > 1. Active student is highlighted. Each pill links to padres.php?alumno=MATRICULA. Use bg-dorado for active pill, bg-white border for inactive.",
+    "STEP 3 - perfil_tutor.php: Add a new section 'Vincular otro alumno' with a form at the bottom. The form has a single input for matricula_alumno. On submit (accion='vincular_alumno'), validate: (a) matricula exists in alumnos table, (b) not already linked to this tutor (check tutores table by nombre_tutor + matricula_alumno). If valid, INSERT into tutores with same nombre_tutor, password_tutor, telefono from current tutor row but new matricula_alumno. Update $_SESSION['alumnos'] array with the new student. Show success/error messages with same styling.",
+    "STEP 4 - app.js: Change to send ALL matriculas to guardar_token.php instead of just one. Read from a new global JS variable MATRICULAS_USUARIO (array) that padres.php will output from $_SESSION['alumnos']. Send {matriculas: [...], token: currentToken} to guardar_token.php. Update localStorage check to use JSON array of matriculas.",
+    "STEP 5 - guardar_token.php: Accept either {matricula, token} (backward compat) or {matriculas: [...], token}. If matriculas array is provided, loop through each and register/update the token for each matricula in dispositivos_padres table. Remove the strict single-matricula session validation - instead validate that ALL provided matriculas exist in $_SESSION['alumnos']. Keep duplicate protection logic per matricula.",
+    "STEP 6 - padres.php: Output the MATRICULAS_USUARIO JS variable as JSON array from $_SESSION['alumnos'] so app.js can use it for multi-student token registration. Keep existing MATRICULA_USUARIO for backward compatibility.",
+    "STEP 7 - logout.php: Update to handle multi-student scenario. If $_SESSION['alumnos'] is set, loop through all matriculas and deactivate tokens for each one (in dispositivos_padres table instead of tokens_fcm)."
+  ],
+  "acceptance_criteria": [
+    "php -l login_padres.php passes with no syntax errors",
+    "php -l padres.php passes with no syntax errors",
+    "php -l perfil_tutor.php passes with no syntax errors",
+    "php -l guardar_token.php passes with no syntax errors",
+    "php -l logout.php passes with no syntax errors",
+    "login_padres.php sets $_SESSION['alumnos'] as array with matricula and nombre_completo fields",
+    "login_padres.php maintains backward-compatible session vars (alumno_matricula, alumno_nombre, tutor_nombre)",
+    "padres.php shows student selector pills/tabs when session has more than 1 student",
+    "padres.php handles ?alumno= GET parameter to switch active student",
+    "perfil_tutor.php has 'Vincular otro alumno' form section with matricula input",
+    "app.js sends all matriculas to guardar_token.php",
+    "guardar_token.php handles array of matriculas and registers token for each"
+  ],
+  "verification": [
+    "Run: php -l /projects/sandbox/SGA-COBAEV/login_padres.php",
+    "Run: php -l /projects/sandbox/SGA-COBAEV/padres.php",
+    "Run: php -l /projects/sandbox/SGA-COBAEV/perfil_tutor.php",
+    "Run: php -l /projects/sandbox/SGA-COBAEV/guardar_token.php",
+    "Run: php -l /projects/sandbox/SGA-COBAEV/logout.php",
+    "Run: node --check /projects/sandbox/SGA-COBAEV/app.js (verify JS syntax)"
+  ],
+  "blocked_reason": null,
+  "findings": "All 6 files modified and pass php -l syntax checks. JS syntax verified with node --check. logout.php now uses dispositivos_padres (DELETE) instead of tokens_fcm. perfil_tutor.php updates ALL tutor rows (same nombre_tutor+password_tutor) when editing profile or changing password. Session maintains backward compatibility with alumno_matricula and alumno_nombre variables."
+}

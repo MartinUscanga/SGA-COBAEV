@@ -1,0 +1,14 @@
+{
+  "task_id": "task-multi-alumno",
+  "task_description": "Implement multi-student support for parent/tutor portal. A tutor with multiple children should see all linked students after login, switch between them, and receive notifications for all. Uses existing tutores table with one row per student-tutor link.",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All 5 PHP files pass php -l syntax validation. JS file reviewed manually (node --check unavailable due to sandbox proxy). All multi-student logic properly implemented across login, dashboard, profile, FCM token registration, and logout."
+  }
+}
