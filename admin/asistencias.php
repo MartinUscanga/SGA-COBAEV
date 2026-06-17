@@ -49,7 +49,7 @@ if ($tipo_filtro !== '' && in_array($tipo_filtro, ['Entrada', 'Salida'])) {
 }
 
 // Total registros
-$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM asistencias a INNER JOIN alumnos al ON a.matricula_alumno = al.matricula $where");
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM asistencias a INNER JOIN alumnos al ON a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci $where");
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
@@ -61,7 +61,7 @@ $offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT a.*, al.nombre, al.apellido_paterno, al.apellido_materno
     FROM asistencias a
-    INNER JOIN alumnos al ON a.matricula_alumno = al.matricula
+    INNER JOIN alumnos al ON a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci
     $where
     ORDER BY a.fecha DESC, a.hora DESC
     LIMIT $por_pagina_int OFFSET $offset_int

@@ -59,7 +59,7 @@ $stmt = $pdo->prepare("
     SELECT a.matricula_alumno, a.tipo, a.hora, a.fecha,
            al.nombre, al.apellido_paterno, al.apellido_materno
     FROM asistencias a
-    INNER JOIN alumnos al ON a.matricula_alumno = al.matricula
+    INNER JOIN alumnos al ON a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci
     WHERE a.fecha = :fecha
     ORDER BY a.hora DESC
     LIMIT 10

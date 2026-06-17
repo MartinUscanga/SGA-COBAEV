@@ -78,7 +78,7 @@ if ($busqueda !== '') {
 }
 
 // Total registros
-$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM tutores t LEFT JOIN alumnos a ON t.matricula_alumno = a.matricula $where");
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM tutores t LEFT JOIN alumnos a ON t.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci $where");
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
@@ -90,7 +90,7 @@ $offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT t.*, a.nombre AS alumno_nombre, a.apellido_paterno AS alumno_ap, a.apellido_materno AS alumno_am
     FROM tutores t
-    LEFT JOIN alumnos a ON t.matricula_alumno = a.matricula
+    LEFT JOIN alumnos a ON t.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci
     $where
     ORDER BY t.nombre_tutor
     LIMIT $por_pagina_int OFFSET $offset_int
