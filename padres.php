@@ -575,12 +575,12 @@ foreach ($asistencias as $reg) {
             menu.classList.toggle('hidden');
         }
 
-        // Reset del Service Worker
+        // Reset del Service Worker + verificar/registrar token
         async function resetServiceWorker() {
             const menu = document.getElementById('menu-opciones');
             menu.classList.add('hidden');
 
-            if (!confirm('¿Actualizar el sistema de notificaciones?\n\nEsto puede resolver problemas con las alertas.')) return;
+            if (!confirm('¿Actualizar el sistema de notificaciones?\n\nEsto verificará que su dispositivo esté correctamente registrado para recibir alertas.')) return;
 
             try {
                 // 1. Desregistrar Service Workers
@@ -597,12 +597,67 @@ foreach ($asistencias as $reg) {
 
                 // 3. Limpiar localStorage del token para forzar re-registro
                 localStorage.removeItem('fcm_token_enviado');
+                localStorage.removeItem('fcm_matriculas');
                 localStorage.removeItem('fcm_matricula');
 
-                alert('Sistema actualizado correctamente.\nLa página se recargará.');
+                // 4. Re-registrar Service Worker
+                const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+                console.log('✅ SW re-registrado');
+
+                // 5. Esperar a que esté listo y obtener token FCM
+                const registration = await navigator.serviceWorker.ready;
+                
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js");
+                const { getMessaging, getToken } = await import("https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging.js");
+                
+                const app = initializeApp({
+                    apiKey: "AIzaSyBirHLalVvjvEiSVxCPFmSEJChNCfTDjuY",
+                    authDomain: "sga-cobaev.firebaseapp.com",
+                    projectId: "sga-cobaev",
+                    storageBucket: "sga-cobaev.firebasestorage.app",
+                    messagingSenderId: "263139601974",
+                    appId: "1:263139601974:web:5fba5cdd72c3b084eff297"
+                }, 'reset-app');
+                
+                const messaging = getMessaging(app);
+                const currentToken = await getToken(messaging, {
+                    vapidKey: 'BJEY0s0K7FhBubLpEYmvdnxm-3Z0PsHwij0ipGlHyQYw7VvL_3knSrUOFhn5OIJXHSIwTQcvogFO_N-oJj-Q6DU',
+                    serviceWorkerRegistration: registration
+                });
+
+                if (currentToken) {
+                    // 6. Enviar token al servidor
+                    const matriculasArray = (typeof MATRICULAS_USUARIO !== 'undefined' && Array.isArray(MATRICULAS_USUARIO))
+                        ? MATRICULAS_USUARIO : [MATRICULA_USUARIO];
+
+                    const response = await fetch('guardar_token.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            matriculas: matriculasArray,
+                            matricula: MATRICULA_USUARIO,
+                            token: currentToken
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        localStorage.setItem('fcm_token_enviado', currentToken);
+                        localStorage.setItem('fcm_matriculas', JSON.stringify(matriculasArray.sort()));
+                        alert('✅ Sistema actualizado correctamente.\n\nSu dispositivo está registrado para recibir notificaciones.');
+                    } else {
+                        alert('⚠️ Sistema actualizado pero hubo un problema al registrar el token.\n\nIntente de nuevo.');
+                    }
+                } else {
+                    alert('⚠️ No se pudo obtener token de notificaciones.\n\nVerifique que los permisos estén activados.');
+                }
+
                 window.location.reload();
             } catch (error) {
-                alert('Error al actualizar: ' + error.message);
+                console.error('Error en reset:', error);
+                alert('Error al actualizar: ' + error.message + '\n\nLa página se recargará.');
+                window.location.reload();
             }
         }
 
