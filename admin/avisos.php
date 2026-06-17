@@ -378,13 +378,19 @@ $pagina_actual = 'avisos';
             }
         }
 
-        // Antes de enviar, ajustar el valor del destinatario
+        // Antes de enviar, poner la matrícula como valor real del destinatario
         document.querySelector('form[method="POST"]').addEventListener('submit', function(e) {
             const select = document.getElementById('select-destinatario');
             const input = document.getElementById('input-matricula');
             if (select.value === 'matricula' && input.value.trim()) {
-                select.value = input.value.trim().toUpperCase();
-                select.name = 'destinatario';
+                // Crear un input hidden con el valor real de la matrícula
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'destinatario';
+                hidden.value = input.value.trim().toUpperCase();
+                this.appendChild(hidden);
+                // Deshabilitar el select para que no envíe "matricula" literal
+                select.disabled = true;
             }
         });
     </script>

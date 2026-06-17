@@ -375,27 +375,27 @@ foreach ($asistencias as $reg) {
                 </div>
                 
                 <!-- Estado actual - zona destacada -->
-                <div class="mx-4 mb-4 rounded-xl p-4 <?php echo $es_plantel ? 'bg-emerald-50 border border-emerald-100' : 'bg-zinc-50 border border-zinc-100'; ?>">
+                <div class="mx-4 mb-4 rounded-xl p-4 <?php echo $es_plantel ? 'bg-emerald-50 border border-emerald-100' : 'bg-zinc-50 border border-zinc-100'; ?>" data-status-container>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3">
                             <!-- Indicador con pulso -->
                             <div class="relative flex items-center justify-center w-10 h-10">
                                 <div class="pulse-ring <?php echo $es_plantel ? 'pulse-ring-green' : 'pulse-ring-gray'; ?> absolute inset-0 rounded-full"></div>
-                                <div class="w-4 h-4 rounded-full <?php echo $es_plantel ? 'bg-emerald-500' : 'bg-zinc-300'; ?> relative z-10 shadow-sm"></div>
+                                <div data-status-dot class="w-4 h-4 rounded-full <?php echo $es_plantel ? 'bg-emerald-500' : 'bg-zinc-300'; ?> relative z-10 shadow-sm"></div>
                             </div>
                             <div>
-                                <p class="text-xs font-bold <?php echo $es_plantel ? 'text-emerald-800' : 'text-zinc-600'; ?> uppercase tracking-wide">
+                                <p data-status-text class="text-xs font-bold <?php echo $es_plantel ? 'text-emerald-800' : 'text-zinc-600'; ?> uppercase tracking-wide">
                                     <?php echo $mensaje_estatus; ?>
                                 </p>
                                 <?php if ($ultimo_movimiento): ?>
-                                    <p class="text-[11px] <?php echo $es_plantel ? 'text-emerald-600' : 'text-zinc-400'; ?> mt-0.5">
+                                    <p data-status-detail class="text-[11px] <?php echo $es_plantel ? 'text-emerald-600' : 'text-zinc-400'; ?> mt-0.5">
                                         <?php 
                                             $hora_formato = date('h:i A', strtotime($ultimo_movimiento['hora']));
                                             echo ($ultimo_movimiento['tipo'] === 'Entrada' ? 'Ingreso' : 'Salida') . " a las {$hora_formato}";
                                         ?>
                                     </p>
                                 <?php else: ?>
-                                    <p class="text-[11px] text-zinc-400 mt-0.5">Sin registros</p>
+                                    <p data-status-detail class="text-[11px] text-zinc-400 mt-0.5">Sin registros</p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -422,12 +422,12 @@ foreach ($asistencias as $reg) {
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
                             <div class="text-center">
-                                <p class="text-lg font-bold text-vino leading-none"><?php echo $resumen_hoy['entradas']; ?></p>
+                                <p data-count-entradas class="text-lg font-bold text-vino leading-none"><?php echo $resumen_hoy['entradas']; ?></p>
                                 <p class="text-[9px] text-zinc-400 font-medium uppercase tracking-wider mt-1">Entradas hoy</p>
                             </div>
                             <div class="w-px h-8 bg-zinc-100"></div>
                             <div class="text-center">
-                                <p class="text-lg font-bold text-vino leading-none"><?php echo $resumen_hoy['salidas']; ?></p>
+                                <p data-count-salidas class="text-lg font-bold text-vino leading-none"><?php echo $resumen_hoy['salidas']; ?></p>
                                 <p class="text-[9px] text-zinc-400 font-medium uppercase tracking-wider mt-1">Salidas hoy</p>
                             </div>
                         </div>
@@ -810,9 +810,58 @@ foreach ($asistencias as $reg) {
         // Cargar avisos al iniciar la pagina
         document.addEventListener('DOMContentLoaded', function() {
             cargarAvisos();
-            // Actualizar cada 60 segundos
+            // Actualizar avisos cada 60 segundos
             setInterval(cargarAvisos, 60000);
+            
+            // Auto-refresh de asistencias cada 30 segundos
+            setInterval(refrescarAsistencias, 30000);
         });
+
+        // ========== AUTO-REFRESH DE ASISTENCIAS ==========
+        async function refrescarAsistencias() {
+            try {
+                const response = await fetch('api/obtener_asistencias.php');
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data.success) return;
+
+                // Actualizar estado (en plantel / fuera)
+                const statusContainer = document.querySelector('[data-status-container]');
+                if (statusContainer) {
+                    const indicador = statusContainer.querySelector('[data-status-dot]');
+                    const texto = statusContainer.querySelector('[data-status-text]');
+                    const detalle = statusContainer.querySelector('[data-status-detail]');
+                    
+                    if (data.es_plantel) {
+                        if (indicador) indicador.className = 'w-4 h-4 rounded-full bg-emerald-500 relative z-10 shadow-sm';
+                        if (texto) { texto.textContent = 'En el plantel'; texto.className = 'text-xs font-bold text-emerald-800 uppercase tracking-wide'; }
+                        if (detalle && data.ultimo_movimiento) {
+                            const hora = new Date('2000-01-01T' + data.ultimo_movimiento.hora).toLocaleTimeString('es-MX', {hour: '2-digit', minute: '2-digit', hour12: true});
+                            detalle.textContent = 'Ingreso a las ' + hora;
+                            detalle.className = 'text-[11px] text-emerald-600 mt-0.5';
+                        }
+                    } else {
+                        if (indicador) indicador.className = 'w-4 h-4 rounded-full bg-zinc-300 relative z-10 shadow-sm';
+                        if (texto) { texto.textContent = 'Fuera del plantel'; texto.className = 'text-xs font-bold text-zinc-600 uppercase tracking-wide'; }
+                        if (detalle && data.ultimo_movimiento) {
+                            const hora = new Date('2000-01-01T' + data.ultimo_movimiento.hora).toLocaleTimeString('es-MX', {hour: '2-digit', minute: '2-digit', hour12: true});
+                            detalle.textContent = 'Salida a las ' + hora;
+                            detalle.className = 'text-[11px] text-zinc-400 mt-0.5';
+                        }
+                    }
+                }
+
+                // Actualizar contadores del día
+                const contEntradas = document.querySelector('[data-count-entradas]');
+                const contSalidas = document.querySelector('[data-count-salidas]');
+                if (contEntradas) contEntradas.textContent = data.resumen_hoy.entradas;
+                if (contSalidas) contSalidas.textContent = data.resumen_hoy.salidas;
+
+            } catch (error) {
+                // Silenciar errores de red para no molestar al usuario
+                console.log('Auto-refresh: sin conexión');
+            }
+        }
     </script>
 
 </body>
