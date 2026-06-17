@@ -1,5 +1,15 @@
 <?php
 // Verificar si ya hay una sesión activa
+// Cookie de sesión con duración larga (30 días) para PWA
+ini_set('session.cookie_lifetime', 2592000);
+ini_set('session.gc_maxlifetime', 2592000);
+session_set_cookie_params([
+    'lifetime' => 2592000,
+    'path' => '/',
+    'secure' => isset($_SERVER['HTTPS']),
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 session_start();
 if (isset($_SESSION['tutor_autenticado']) && $_SESSION['tutor_autenticado'] === true) {
     // Si ya está logueado, redirigir al portal
