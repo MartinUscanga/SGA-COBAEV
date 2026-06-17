@@ -35,5 +35,5 @@
     "Verify sidebar navigation exists in each file with links to all 6 pages"
   ],
   "blocked_reason": null,
-  "findings": "All 6 PHP files created and pass php -l syntax check. Each file has: session auth check, require_once conexion.php, sidebar with all 6 nav links, Tailwind CDN, Google Fonts, project color palette (crema/vino/dorado), responsive sidebar with mobile toggle. Used PDO prepared statements throughout. The match() syntax in usuarios.php requires PHP 8.0+."
+  "findings": "All 6 PHP files created and pass php -l syntax check. Post-review fixes applied: (1) tutor/user password inputs changed to type=password, (2) CSRF token protection added to all POST forms, (3) LIMIT/OFFSET interpolation secured with explicit intval() casts, (4) usuarios.php restricted to Admin role only, (5) N+1 query in alumnos.php replaced with single JOIN query, (6) match() replaced with switch/case for PHP 7.x compatibility. No password hashing added (intentional plaintext for XAMPP dev). database_structure.sql not modified."
 }
