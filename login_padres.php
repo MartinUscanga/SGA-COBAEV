@@ -64,6 +64,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['alumno_matricula']  = $tutor['matricula_alumno'];
             $_SESSION['alumno_nombre']     = $tutor['nombre_alumno'] . ' ' . $tutor['apellido_paterno'] . ' ' . $tutor['apellido_materno'];
             
+            // Regenerar ID de sesion para prevenir session fixation
+            session_regenerate_id(true);
+
             // Redireccionamos al portal de seguimiento (padres.php)
             header("Location: padres.php");
             exit;
@@ -82,6 +85,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5c1931">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="manifest" href="manifest.json">
     <title>Acceso de Tutores - COBAEV</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -102,7 +110,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body class="bg-crema font-sans-clean min-h-screen flex flex-col justify-between p-4 md:p-8 selection:bg-red-200">
 
     <div class="max-w-md mx-auto w-full text-left flex-shrink-0">
-        <a href="index.html" class="inline-flex items-center text-xs font-bold tracking-wider text-zinc-400 hover:text-vino uppercase transition-colors group">
+        <a href="index.php" class="inline-flex items-center text-xs font-bold tracking-wider text-zinc-400 hover:text-vino uppercase transition-colors group">
             <span class="mr-2 group-hover:-translate-x-1 transition-transform">←</span> Volver al inicio
         </a>
     </div>
@@ -131,7 +139,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div>
                 <label class="block text-xs font-bold text-zinc-500 uppercase mb-1 tracking-wide">Matrícula del Alumno</label>
                 <div class="relative">
-                    <input type="text" name="matricula" required placeholder="Ej. B2024001" 
+                    <input type="text" name="matricula" required placeholder="Ej. 123310070" inputmode="numeric"
                            class="w-full bg-zinc-50 border border-zinc-200 rounded p-2.5 pl-9 text-sm font-mono focus:outline-none focus:border-vino transition-colors placeholder:font-sans placeholder:text-zinc-400 uppercase">
                     <svg class="w-4 h-4 absolute left-3 top-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>
@@ -142,7 +150,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div>
                 <div class="flex justify-between items-center mb-1">
                     <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide">Clave de Acceso</label>
-                    <a href="#" class="text-[10px] font-semibold text-dorado hover:underline">Solicitar clave</a>
+                    <a href="recuperar_clave.php" class="text-[10px] font-semibold text-dorado hover:underline">Recuperar clave</a>
                 </div>
                 <div class="relative">
                     <input type="password" name="password_tutor" required placeholder="Introduce tu clave privada" 
