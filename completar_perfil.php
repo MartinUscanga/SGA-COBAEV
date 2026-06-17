@@ -37,42 +37,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $mensaje_error = "Las contraseñas no coinciden.";
     } else {
         try {
-            // Actualizar datos del tutor en TODOS sus registros (multi-alumno)
+            // Actualizar SOLO los registros vinculados a las matrículas del tutor logueado
+            $alumnos_sesion = $_SESSION['alumnos'] ?? [];
+            $matriculas_tutor = array_map(function($a) { return $a['matricula']; }, $alumnos_sesion);
+            
+            // Si no hay array de alumnos, usar la matrícula individual
+            if (empty($matriculas_tutor)) {
+                $matriculas_tutor = [$matricula_alumno];
+            }
+
+            // Actualizar cada registro vinculado al tutor
             $sql = "UPDATE tutores SET 
                         nombre_tutor = :nombre, 
                         telefono = :telefono, 
                         email = :email, 
                         password_tutor = :password,
                         perfil_completo = 1
-                    WHERE nombre_tutor = :nombre_anterior 
-                    AND password_tutor = :password_anterior";
+                    WHERE matricula_alumno = :matricula";
             
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                'nombre' => $nombre,
-                'telefono' => $telefono,
-                'email' => $email,
-                'password' => $password_nueva,
-                'nombre_anterior' => $nombre_tutor,
-                'password_anterior' => $_SESSION['password_actual'] ?? $password_nueva
-            ]);
-
-            // Si no se actualizó con nombre_anterior, intentar por matrícula
-            if ($stmt->rowCount() === 0) {
-                $sql2 = "UPDATE tutores SET 
-                            nombre_tutor = :nombre, 
-                            telefono = :telefono, 
-                            email = :email, 
-                            password_tutor = :password,
-                            perfil_completo = 1
-                         WHERE matricula_alumno = :matricula";
-                $stmt2 = $pdo->prepare($sql2);
-                $stmt2->execute([
+            
+            foreach ($matriculas_tutor as $mat) {
+                $stmt->execute([
                     'nombre' => $nombre,
                     'telefono' => $telefono,
                     'email' => $email,
                     'password' => $password_nueva,
-                    'matricula' => $matricula_alumno
+                    'matricula' => $mat
                 ]);
             }
 
