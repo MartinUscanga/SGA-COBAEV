@@ -130,15 +130,18 @@ async function solicitarPermisoYRegistrar() {
 onMessage(messaging, (payload) => {
     console.log('Mensaje recibido en primer plano:', payload);
 
-    if (Notification.permission === 'granted' && payload.notification) {
-        const title = payload.notification.title;
+    if (Notification.permission === 'granted') {
+        // Con data-only, los datos vienen en payload.data
+        const title = payload.data?.title || payload.notification?.title || 'Alerta COBAEV';
+        const body = payload.data?.body || payload.notification?.body || '';
+        const icon = payload.data?.icon || '/logo.png';
+
         const options = {
-            body: payload.notification.body,
-            icon: '/logo.png',
-            tag: 'cobaev-foreground' // Tag fijo para evitar duplicados con SW
+            body: body,
+            icon: icon,
+            tag: 'cobaev-fg' // Tag fijo para evitar duplicados
         };
 
-        // Usar Service Worker para mostrar (evita duplicados)
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification(title, options);
         });

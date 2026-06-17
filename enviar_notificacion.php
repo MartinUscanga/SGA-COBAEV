@@ -54,40 +54,26 @@ function enviarAlertaFirebase($token_padre, $mensaje_texto) {
     $projectId = $jsonKey['project_id'];
     $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
 
-    // 3. Preparar payload de la notificación
+    // 3. Preparar payload - SOLO DATA (sin notification)
+    // Firebase no muestra nada automáticamente con data-only
+    // El Service Worker (sw.js) se encarga de mostrar la notificación
     $mensaje = [
         'message' => [
             'token' => $token_padre,
-            'notification' => [
-                'title' => 'Alerta de Acceso COBAEV',
-                'body' => $mensaje_texto
-            ],
             'data' => [
+                'title' => 'Alerta de Acceso COBAEV',
+                'body' => $mensaje_texto,
                 'tipo' => 'asistencia',
                 'timestamp' => date('Y-m-d H:i:s'),
-                'url' => '/padres.php'
+                'url' => '/padres.php',
+                'icon' => '/logo.png'
             ],
             'android' => [
-                'priority' => 'high',
-                'notification' => [
-                    'sound' => 'default',
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ]
-            ],
-            'apns' => [
-                'payload' => [
-                    'aps' => [
-                        'sound' => 'default',
-                        'badge' => 1
-                    ]
-                ]
+                'priority' => 'high'
             ],
             'webpush' => [
-                'notification' => [
-                    'icon' => '/logo.png',
-                    'badge' => '/badge-cobaev.png',
-                    'vibrate' => [200, 100, 200],
-                    'requireInteraction' => true
+                'headers' => [
+                    'Urgency' => 'high'
                 ]
             ]
         ]

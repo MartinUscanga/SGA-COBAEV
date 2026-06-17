@@ -42,17 +42,17 @@ self.addEventListener('activate', (event) => {
 
 // Manejador de notificaciones en segundo plano
 messaging.onBackgroundMessage((payload) => {
-    console.log('[sw.js] Mensaje recibido en segundo plano:', payload);
+    console.log('[sw.js] Mensaje recibido:', payload);
     
-    // Extraer información del payload
-    const title = payload.notification?.title || "Alerta COBAEV";
-    const body = payload.notification?.body || "Registro de acceso";
+    // Con data-only, los datos vienen en payload.data
+    const title = payload.data?.title || payload.notification?.title || "Alerta COBAEV";
+    const body = payload.data?.body || payload.notification?.body || "Registro de acceso";
+    const icon = payload.data?.icon || '/logo.png';
 
-    // Mostrar notificación con tag único
     self.registration.showNotification(title, {
         body: body,
-        icon: '/logo.png',
-        tag: 'cobaev-' + Date.now(), // TAG ÚNICO para no sobreescribir
+        icon: icon,
+        tag: 'cobaev-bg',
         renotify: true,
         requireInteraction: true,
         vibrate: [200, 100, 200]
