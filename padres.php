@@ -214,6 +214,17 @@ foreach ($asistencias as $reg) {
         <!-- Menú desplegable -->
         <div id="menu-opciones" class="hidden absolute top-16 right-4 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden z-[100] w-56">
             <div class="py-1">
+                <a href="perfil_tutor.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
+                    <div class="w-8 h-8 bg-violet-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-zinc-700">Mi perfil</p>
+                        <p class="text-[10px] text-zinc-400">Editar datos y contraseña</p>
+                    </div>
+                </a>
                 <button onclick="resetServiceWorker()" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
                     <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
