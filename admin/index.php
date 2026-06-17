@@ -30,17 +30,19 @@ $stmt->execute(['fecha' => $hoy]);
 $salidas_hoy = $stmt->fetch()['total'];
 
 // Alumnos actualmente en el plantel
-// Lógica: alumnos cuyo ÚLTIMO registro del día es una Entrada
+// Lógica: obtener el último registro del día de cada alumno, contar los que son "Entrada"
 $stmt = $pdo->prepare("
     SELECT COUNT(*) as total FROM (
-        SELECT matricula_alumno, tipo
-        FROM asistencias
-        WHERE fecha = :fecha
-        AND id_asistencia IN (
-            SELECT MAX(id_asistencia) FROM asistencias WHERE fecha = :fecha2 GROUP BY matricula_alumno
+        SELECT a1.matricula_alumno, a1.tipo
+        FROM asistencias a1
+        WHERE a1.fecha = :fecha
+        AND a1.id_asistencia = (
+            SELECT MAX(a2.id_asistencia) 
+            FROM asistencias a2 
+            WHERE a2.matricula_alumno = a1.matricula_alumno 
+            AND a2.fecha = :fecha2
         )
-        HAVING tipo = 'Entrada'
-    ) as en_plantel
+    ) sub WHERE sub.tipo = 'Entrada'
 ");
 $stmt->execute(['fecha' => $hoy, 'fecha2' => $hoy]);
 $en_plantel = $stmt->fetch()['total'];

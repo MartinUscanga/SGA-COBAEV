@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO usuarios (username, password_admin, nombre_completo, rol) VALUES (:username, :password, :nombre, :rol)");
+            $stmt = $pdo->prepare("INSERT INTO usuarios_admin (username, password_admin, nombre_completo, rol) VALUES (:username, :password, :nombre, :rol)");
             $stmt->execute([
                 'username' => trim($_POST['username']),
                 'password' => trim($_POST['password_admin']),
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $campos .= ", password_admin = :password";
                 $params['password'] = trim($_POST['password_admin']);
             }
-            $stmt = $pdo->prepare("UPDATE usuarios SET $campos WHERE id_usuario = :id");
+            $stmt = $pdo->prepare("UPDATE usuarios_admin SET $campos WHERE id_usuario = :id");
             $stmt->execute($params);
             $mensaje = 'Usuario actualizado exitosamente.';
             $tipo_mensaje = 'success';
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mensaje = 'No puedes eliminar tu propia cuenta.';
                 $tipo_mensaje = 'error';
             } else {
-                $stmt = $pdo->prepare("DELETE FROM usuarios WHERE id_usuario = :id");
+                $stmt = $pdo->prepare("DELETE FROM usuarios_admin WHERE id_usuario = :id");
                 $stmt->execute(['id' => $id_eliminar]);
                 $mensaje = 'Usuario eliminado exitosamente.';
                 $tipo_mensaje = 'success';
@@ -84,13 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Obtener todos los usuarios
-$stmt = $pdo->query("SELECT * FROM usuarios ORDER BY nombre_completo");
+$stmt = $pdo->query("SELECT * FROM usuarios_admin ORDER BY nombre_completo");
 $usuarios = $stmt->fetchAll();
 
 // Usuario para editar
 $usuario_editar = null;
 if (isset($_GET['editar'])) {
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id_usuario = :id");
+    $stmt = $pdo->prepare("SELECT * FROM usuarios_admin WHERE id_usuario = :id");
     $stmt->execute(['id' => $_GET['editar']]);
     $usuario_editar = $stmt->fetch();
 }

@@ -22,7 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         // Consultar usuario administrador
         $sql = "SELECT id_usuario, username, password_admin, nombre_completo, rol, ultimo_acceso 
-                FROM usuarios 
+                FROM usuarios_admin 
                 WHERE username = :username";
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['username' => $username]);
@@ -33,7 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($user && $password === $user['password_admin']) {
             
             // Actualizar último acceso
-            $update_sql = "UPDATE usuarios SET ultimo_acceso = NOW() WHERE id_usuario = :id";
+            $update_sql = "UPDATE usuarios_admin SET ultimo_acceso = NOW() WHERE id_usuario = :id";
             $update_stmt = $pdo->prepare($update_sql);
             $update_stmt->execute(['id' => $user['id_usuario']]);
             
