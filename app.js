@@ -73,8 +73,7 @@ async function solicitarPermisoYRegistrar() {
 
             if (currentToken) {
                 // PROTECCION CONTRA DUPLICADOS (Frontend):
-                // Solo prevenir llamadas repetidas desde EL MISMO dispositivo
-                // NO bloquear si es un dispositivo nuevo (el localStorage es diferente)
+                // Solo prevenir llamadas repetidas desde EL MISMO dispositivo con la MISMA matrícula
                 const tokenGuardado = localStorage.getItem('fcm_token_enviado');
                 const matriculasGuardadas = localStorage.getItem('fcm_matriculas');
                 
@@ -85,9 +84,17 @@ async function solicitarPermisoYRegistrar() {
                 
                 const matriculasJSON = JSON.stringify(matriculasArray.sort());
 
+                // Siempre enviar si: token cambió, matrículas cambiaron, o no hay token guardado
                 if (tokenGuardado === currentToken && matriculasGuardadas === matriculasJSON) {
-                    console.log("✅ Token ya registrado para todas las matriculas, no se reenvia.");
+                    console.log("✅ Token ya registrado para estas matriculas, no se reenvia.");
                     return;
+                }
+
+                // Limpiar localStorage anterior si las matrículas cambiaron
+                if (matriculasGuardadas && matriculasGuardadas !== matriculasJSON) {
+                    localStorage.removeItem('fcm_token_enviado');
+                    localStorage.removeItem('fcm_matriculas');
+                    console.log("🔄 Matrículas cambiaron, re-registrando token...");
                 }
 
                 // Token nuevo o matriculas diferentes -> enviar al servidor
