@@ -52,6 +52,25 @@ date_default_timezone_set('America/Mexico_City');
         .border-vino { border-color: #5c1931; }
         .text-dorado { color: #a48253; }
         .border-dorado { border-color: #a48253; }
+
+        /* Animación suave para nuevos registros */
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-slide-in { animation: slideInRight 0.3s ease-out; }
+
+        /* Pulso suave para zona de escaneo */
+        @keyframes softPulse {
+            0%, 100% { border-color: #d4d4d8; }
+            50% { border-color: #a48253; }
+        }
+        .pulse-border { animation: softPulse 3s ease-in-out infinite; }
+
+        /* Transición suave para el último registro */
+        #contenedor-ultimo-registro {
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-crema font-sans-clean min-h-screen flex flex-col selection:bg-red-200 overflow-hidden">
@@ -76,7 +95,13 @@ date_default_timezone_set('America/Mexico_City');
         <!-- Fecha y Usuario -->
         <div class="text-right">
             <div class="text-zinc-500 text-xs font-medium tracking-wide uppercase" id="fecha-cabecera">
-                <?php echo strftime('%A, %d de %B de %Y'); ?>
+                <script>
+                    // Fecha en español
+                    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                    const fecha = new Date();
+                    document.write(`${diasSemana[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]} de ${fecha.getFullYear()}`);
+                </script>
             </div>
             <div class="text-[10px] text-zinc-400">
                 Usuario: <strong><?php echo htmlspecialchars($_SESSION['usuario_nombre'] ?? 'Admin'); ?></strong>
@@ -100,7 +125,13 @@ date_default_timezone_set('America/Mexico_City');
             </div>
 
             <!-- Zona de Estado del Lector HID -->
-            <div class="relative flex-grow bg-gradient-to-br from-zinc-50 to-zinc-100 rounded-lg border-2 border-dashed border-zinc-300 flex flex-col items-center justify-center overflow-hidden shadow-inner my-2">
+            <div class="relative flex-grow bg-gradient-to-br from-zinc-50 to-zinc-100 rounded-lg border-2 border-dashed border-zinc-300 pulse-border flex flex-col items-center justify-center overflow-hidden shadow-inner my-2">
+                
+                <!-- Esquinas decorativas -->
+                <div class="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-vino/30 rounded-tl"></div>
+                <div class="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-vino/30 rounded-tr"></div>
+                <div class="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-vino/30 rounded-bl"></div>
+                <div class="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-vino/30 rounded-br"></div>
                 
                 <!-- Estado: Esperando escaneo -->
                 <div id="zona-escaner" class="text-center space-y-4 p-6">
@@ -300,9 +331,20 @@ date_default_timezone_set('America/Mexico_City');
             clearTimeout(timeoutProcesamiento);
             actualizarUIRespuesta(data, matricula);
             
-            // Actualizar bitácora (solo agregar el nuevo)
-            if (data.nuevo_registro) {
+            // Actualizar bitácora
+            // Soporta ambos formatos del backend:
+            // 1. data.nuevo_registro (registro individual nuevo)
+            // 2. data.bitacora (array completo de registros)
+            if (data.bitacora && data.bitacora.length > 0) {
+                // Backend devuelve la bitácora completa: recargar toda la lista
+                const contenedor = document.getElementById('lista-bitacora');
+                contenedor.innerHTML = data.bitacora.map(r => crearTarjetaRegistro(r)).join('');
+            } else if (data.nuevo_registro) {
+                // Backend devuelve solo el nuevo registro: insertar al inicio
                 agregarRegistroBitacora(data.nuevo_registro);
+            } else {
+                // Fallback: recargar bitácora desde endpoint dedicado
+                cargarBitacoraInicial();
             }
         })
         .catch(error => {
