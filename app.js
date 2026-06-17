@@ -72,25 +72,33 @@ async function solicitarPermisoYRegistrar() {
             });
 
             if (currentToken) {
-                // PROTECCIÓN CONTRA DUPLICADOS (Frontend):
+                // PROTECCION CONTRA DUPLICADOS (Frontend):
                 // Solo prevenir llamadas repetidas desde EL MISMO dispositivo
                 // NO bloquear si es un dispositivo nuevo (el localStorage es diferente)
                 const tokenGuardado = localStorage.getItem('fcm_token_enviado');
-                const matriculaGuardada = localStorage.getItem('fcm_matricula');
+                const matriculasGuardadas = localStorage.getItem('fcm_matriculas');
                 
-                if (tokenGuardado === currentToken && matriculaGuardada === MATRICULA_USUARIO) {
-                    console.log("✅ Token ya registrado desde este dispositivo, no se reenvia.");
+                // Usar MATRICULAS_USUARIO si esta disponible (multi-alumno), sino fallback a MATRICULA_USUARIO
+                const matriculasArray = (typeof MATRICULAS_USUARIO !== 'undefined' && Array.isArray(MATRICULAS_USUARIO) && MATRICULAS_USUARIO.length > 0)
+                    ? MATRICULAS_USUARIO
+                    : [MATRICULA_USUARIO];
+                
+                const matriculasJSON = JSON.stringify(matriculasArray.sort());
+
+                if (tokenGuardado === currentToken && matriculasGuardadas === matriculasJSON) {
+                    console.log("✅ Token ya registrado para todas las matriculas, no se reenvia.");
                     return;
                 }
 
-                // Token nuevo o dispositivo diferente → enviar al servidor
-                console.log("📡 Enviando token al servidor (nuevo o diferente)...");
+                // Token nuevo o matriculas diferentes -> enviar al servidor
+                console.log("📡 Enviando token al servidor para", matriculasArray.length, "matricula(s)...");
                 console.log("Token preview:", currentToken.substring(0, 30) + "...");
 
                 const response = await fetch('guardar_token.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
+                        matriculas: matriculasArray,
                         matricula: MATRICULA_USUARIO,
                         token: currentToken 
                     })
@@ -99,11 +107,13 @@ async function solicitarPermisoYRegistrar() {
                 const data = await response.json();
                 console.log("Respuesta del servidor:", data);
                 
-                // Guardar en localStorage SOLO si se guardó correctamente
+                // Guardar en localStorage SOLO si se guardo correctamente
                 if (data.success) {
                     localStorage.setItem('fcm_token_enviado', currentToken);
+                    localStorage.setItem('fcm_matriculas', matriculasJSON);
+                    // Mantener compatibilidad con localStorage anterior
                     localStorage.setItem('fcm_matricula', MATRICULA_USUARIO);
-                    console.log("✅ Token guardado. Status:", data.status);
+                    console.log("✅ Token guardado para", matriculasArray.length, "matricula(s). Status:", data.status);
                 } else {
                     console.error("❌ Error al guardar token:", data.message);
                 }

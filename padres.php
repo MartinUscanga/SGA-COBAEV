@@ -25,10 +25,24 @@ if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !==
 // Traemos la conexion PDO
 require_once 'conexion.php';
 
+// Manejar cambio de alumno activo via GET
+if (isset($_GET['alumno']) && isset($_SESSION['alumnos'])) {
+    $alumno_solicitado = strtoupper(trim($_GET['alumno']));
+    // Validar que la matricula solicitada existe en la sesion del tutor
+    foreach ($_SESSION['alumnos'] as $alumno_item) {
+        if ($alumno_item['matricula'] === $alumno_solicitado) {
+            $_SESSION['alumno_matricula'] = $alumno_item['matricula'];
+            $_SESSION['alumno_nombre'] = $alumno_item['nombre_completo'];
+            break;
+        }
+    }
+}
+
 // Recogemos las variables de sesion (solo las que define login_padres.php)
 $matricula_alumno = $_SESSION['alumno_matricula'] ?? '';
 $nombre_alumno    = $_SESSION['alumno_nombre'] ?? 'Alumno';
 $nombre_tutor     = $_SESSION['tutor_nombre'] ?? 'Tutor';
+$alumnos_vinculados = $_SESSION['alumnos'] ?? [];
 
 $asistencias = [];
 $ultimo_movimiento = null;
@@ -116,11 +130,13 @@ foreach ($asistencias as $reg) {
     <!-- Variable JavaScript para FCM -->
     <script>
         const MATRICULA_USUARIO = "<?php echo htmlspecialchars($matricula_alumno); ?>";
+        const MATRICULAS_USUARIO = <?php echo json_encode(array_map(function($a) { return $a['matricula']; }, $alumnos_vinculados)); ?>;
         
         if (MATRICULA_USUARIO === "") {
             console.error("Error: La sesion no tiene matricula definida");
         } else {
-            console.log("Matricula cargada:", MATRICULA_USUARIO);
+            console.log("Matricula activa:", MATRICULA_USUARIO);
+            console.log("Todas las matriculas:", MATRICULAS_USUARIO);
         }
     </script>
     
@@ -265,6 +281,34 @@ foreach ($asistencias as $reg) {
 
     <!-- Main Content -->
     <main class="flex-grow pb-6">
+
+        <!-- Selector de alumno (solo si hay mas de 1 vinculado) -->
+        <?php if (count($alumnos_vinculados) > 1): ?>
+        <div class="px-4 pt-3 pb-1">
+            <p class="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-2">Alumno activo</p>
+            <div class="flex flex-wrap gap-2">
+                <?php foreach ($alumnos_vinculados as $alumno_pill): ?>
+                    <?php 
+                        $es_activo = ($alumno_pill['matricula'] === $matricula_alumno);
+                        // Obtener iniciales del nombre
+                        $partes_nombre = explode(' ', $alumno_pill['nombre_completo']);
+                        $inicial = mb_strtoupper(mb_substr($partes_nombre[0], 0, 1));
+                    ?>
+                    <a href="padres.php?alumno=<?php echo urlencode($alumno_pill['matricula']); ?>"
+                       class="inline-flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95
+                              <?php echo $es_activo 
+                                  ? 'bg-dorado text-white shadow-sm' 
+                                  : 'bg-white border border-zinc-200 text-zinc-600 hover:border-zinc-300'; ?>">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
+                                     <?php echo $es_activo ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-500'; ?>">
+                            <?php echo $inicial; ?>
+                        </span>
+                        <span class="truncate max-w-[120px]"><?php echo htmlspecialchars($alumno_pill['nombre_completo']); ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <!-- Saludo y contexto -->
         <div class="px-4 pt-5 pb-3">

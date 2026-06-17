@@ -52,15 +52,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $tutor) {
             } elseif (!empty($telefono) && !preg_match('/^[0-9]{10}$/', $telefono)) {
                 $mensaje_error = "El teléfono debe tener 10 dígitos numéricos.";
             } else {
-                $update_sql = "UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono WHERE id_tutor = :id";
+                // Actualizar TODOS los registros del mismo tutor (por nombre_tutor original)
+                $update_sql = "UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono 
+                               WHERE nombre_tutor = :nombre_original AND password_tutor = :password";
                 $update_stmt = $pdo->prepare($update_sql);
                 $update_stmt->execute([
                     'nombre' => $nombre,
                     'telefono' => $telefono ?: null,
-                    'id' => $tutor['id_tutor']
+                    'nombre_original' => $tutor['nombre_tutor'],
+                    'password' => $tutor['password_tutor']
                 ]);
 
-                // Actualizar sesión
+                // Actualizar sesion
                 $_SESSION['tutor_nombre'] = $nombre;
                 $mensaje_exito = "Datos actualizados correctamente.";
 
@@ -84,11 +87,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $tutor) {
             } elseif ($password_nueva === $password_actual) {
                 $mensaje_error = "La nueva contraseña debe ser diferente a la actual.";
             } else {
-                $update_sql = "UPDATE tutores SET password_tutor = :password WHERE id_tutor = :id";
+                // Actualizar password en TODOS los registros del mismo tutor
+                $update_sql = "UPDATE tutores SET password_tutor = :password_nueva 
+                               WHERE nombre_tutor = :nombre_tutor AND password_tutor = :password_actual";
                 $update_stmt = $pdo->prepare($update_sql);
                 $update_stmt->execute([
-                    'password' => $password_nueva,
-                    'id' => $tutor['id_tutor']
+                    'password_nueva' => $password_nueva,
+                    'nombre_tutor' => $tutor['nombre_tutor'],
+                    'password_actual' => $password_actual
                 ]);
 
                 $mensaje_exito = "Contraseña actualizada correctamente.";
@@ -97,12 +103,62 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $tutor) {
                 $stmt->execute(['matricula' => $matricula_alumno]);
                 $tutor = $stmt->fetch();
             }
+
+        } elseif ($accion === 'vincular_alumno') {
+            $nueva_matricula = strtoupper(trim($_POST['nueva_matricula'] ?? ''));
+
+            if (empty($nueva_matricula) || strlen($nueva_matricula) < 5) {
+                $mensaje_error = "Ingrese una matrícula válida.";
+            } else {
+                // Verificar que la matricula exista en la tabla alumnos
+                $check_alumno = $pdo->prepare("SELECT matricula, nombre, apellido_paterno, apellido_materno FROM alumnos WHERE matricula = :matricula");
+                $check_alumno->execute(['matricula' => $nueva_matricula]);
+                $alumno_encontrado = $check_alumno->fetch();
+
+                if (!$alumno_encontrado) {
+                    $mensaje_error = "La matrícula ingresada no existe en el sistema.";
+                } else {
+                    // Verificar que no este ya vinculada a este tutor
+                    $check_vinculo = $pdo->prepare("SELECT id_tutor FROM tutores WHERE nombre_tutor = :nombre AND matricula_alumno = :matricula");
+                    $check_vinculo->execute([
+                        'nombre' => $tutor['nombre_tutor'],
+                        'matricula' => $nueva_matricula
+                    ]);
+
+                    if ($check_vinculo->fetch()) {
+                        $mensaje_error = "Esta matrícula ya está vinculada a su cuenta.";
+                    } else {
+                        // Insertar nuevo registro en tutores
+                        $insert_sql = "INSERT INTO tutores (matricula_alumno, nombre_tutor, telefono, password_tutor, creado_el) 
+                                       VALUES (:matricula, :nombre, :telefono, :password, NOW())";
+                        $insert_stmt = $pdo->prepare($insert_sql);
+                        $insert_stmt->execute([
+                            'matricula' => $nueva_matricula,
+                            'nombre' => $tutor['nombre_tutor'],
+                            'telefono' => $tutor['telefono'],
+                            'password' => $tutor['password_tutor']
+                        ]);
+
+                        // Actualizar la sesion con el nuevo alumno
+                        $nombre_completo_nuevo = $alumno_encontrado['nombre'] . ' ' . $alumno_encontrado['apellido_paterno'] . ' ' . $alumno_encontrado['apellido_materno'];
+                        $_SESSION['alumnos'][] = [
+                            'matricula' => $nueva_matricula,
+                            'nombre_completo' => $nombre_completo_nuevo
+                        ];
+
+                        $mensaje_exito = "Alumno vinculado exitosamente: " . $nombre_completo_nuevo;
+                    }
+                }
+            }
         }
     } catch (PDOException $e) {
         error_log("Error perfil_tutor.php (UPDATE): " . $e->getMessage());
         $mensaje_error = "Error al guardar los cambios. Intente de nuevo.";
     }
 }
+
+// Obtener lista de alumnos vinculados para mostrar en la seccion
+$alumnos_vinculados = $_SESSION['alumnos'] ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -282,6 +338,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $tutor) {
 
                     <button type="submit" class="w-full bg-rose-600 hover:bg-opacity-95 text-white font-bold text-xs tracking-wider uppercase py-3 rounded-lg shadow-sm active:scale-[0.98] transition-all">
                         Cambiar contraseña
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Alumnos vinculados -->
+        <div class="px-4 mb-4">
+            <div class="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-zinc-50">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-1 h-4 bg-emerald-400 rounded-full"></div>
+                        <h3 class="text-xs font-bold tracking-wide text-zinc-700 uppercase">Alumnos Vinculados</h3>
+                    </div>
+                </div>
+                <div class="p-5">
+                    <?php if (!empty($alumnos_vinculados)): ?>
+                        <div class="space-y-2">
+                            <?php foreach ($alumnos_vinculados as $av): ?>
+                                <div class="flex items-center space-x-3 p-2.5 rounded-xl bg-zinc-50 border border-zinc-100">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#5c1931] to-[#a48253] flex items-center justify-center flex-shrink-0">
+                                        <span class="text-white font-bold text-[10px]">
+                                            <?php echo mb_strtoupper(mb_substr($av['nombre_completo'], 0, 1)); ?>
+                                        </span>
+                                    </div>
+                                    <div class="min-w-0 flex-grow">
+                                        <p class="text-xs font-semibold text-zinc-700 truncate"><?php echo htmlspecialchars($av['nombre_completo']); ?></p>
+                                        <p class="text-[10px] text-zinc-400 font-mono"><?php echo htmlspecialchars($av['matricula']); ?></p>
+                                    </div>
+                                    <?php if ($av['matricula'] === $matricula_alumno): ?>
+                                        <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">Activo</span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-xs text-zinc-400 text-center">No hay alumnos vinculados.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario: Vincular otro alumno -->
+        <div class="px-4 mb-4">
+            <form method="POST" class="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                <input type="hidden" name="accion" value="vincular_alumno">
+                
+                <div class="px-5 py-4 border-b border-zinc-50">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-1 h-4 bg-blue-400 rounded-full"></div>
+                        <h3 class="text-xs font-bold tracking-wide text-zinc-700 uppercase">Vincular Otro Alumno</h3>
+                    </div>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <p class="text-[11px] text-zinc-500 leading-relaxed">
+                        Si tiene otro hijo/a en el plantel, ingrese su matrícula para vincularlo a su cuenta y recibir notificaciones de ambos.
+                    </p>
+
+                    <!-- Matricula del nuevo alumno -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5">Matrícula del alumno</label>
+                        <input 
+                            type="text" 
+                            name="nueva_matricula" 
+                            required
+                            placeholder="Ej. 123310070"
+                            class="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-3 text-sm font-mono uppercase focus:outline-none focus:border-vino focus:ring-1 focus:ring-[#5c1931]/20 transition-all placeholder:text-zinc-400 placeholder:font-sans">
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-opacity-95 text-white font-bold text-xs tracking-wider uppercase py-3 rounded-lg shadow-sm active:scale-[0.98] transition-all">
+                        Vincular alumno
                     </button>
                 </div>
             </form>

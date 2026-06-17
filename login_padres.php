@@ -25,17 +25,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // 4. Validamos las credenciales
         if ($tutor && $password_tutor === $tutor['password_tutor']) {
             
-            // Si todo está bien, guardamos las variables necesarias en la sesión
+            // 5. Buscar TODOS los alumnos vinculados al mismo tutor (mismo nombre_tutor y password_tutor)
+            $sql_todos = "SELECT t.id_tutor, t.matricula_alumno, a.nombre, a.apellido_paterno, a.apellido_materno 
+                          FROM tutores t
+                          INNER JOIN alumnos a ON t.matricula_alumno = a.matricula
+                          WHERE t.nombre_tutor = :nombre_tutor AND t.password_tutor = :password_tutor";
+            $stmt_todos = $pdo->prepare($sql_todos);
+            $stmt_todos->execute([
+                'nombre_tutor' => $tutor['nombre_tutor'],
+                'password_tutor' => $tutor['password_tutor']
+            ]);
+            $todos_alumnos = $stmt_todos->fetchAll();
+
+            // Construir array de alumnos vinculados
+            $alumnos_sesion = [];
+            foreach ($todos_alumnos as $alumno_row) {
+                $alumnos_sesion[] = [
+                    'matricula' => $alumno_row['matricula_alumno'],
+                    'nombre_completo' => $alumno_row['nombre'] . ' ' . $alumno_row['apellido_paterno'] . ' ' . $alumno_row['apellido_materno']
+                ];
+            }
+
+            // Si por alguna razon no se encontraron alumnos, usar el original
+            if (empty($alumnos_sesion)) {
+                $alumnos_sesion[] = [
+                    'matricula' => $tutor['matricula_alumno'],
+                    'nombre_completo' => $tutor['nombre_alumno'] . ' ' . $tutor['apellido_paterno'] . ' ' . $tutor['apellido_materno']
+                ];
+            }
+
+            // Guardamos las variables de sesion (multi-alumno)
             $_SESSION['tutor_autenticado'] = true;
-            $_SESSION['alumno_matricula']   = $tutor['matricula_alumno'];
-            $_SESSION['alumno_nombre']      = $tutor['nombre_alumno'] . ' ' . $tutor['apellido_paterno']. ' ' .$tutor['apellido_materno'];
-            $_SESSION['tutor_nombre']       = $tutor['nombre_tutor'];
+            $_SESSION['tutor_nombre']      = $tutor['nombre_tutor'];
+            $_SESSION['tutor_id']          = $tutor['id_tutor'];
+            $_SESSION['alumnos']           = $alumnos_sesion;
+
+            // Variables de compatibilidad (alumno activo = el que se uso para login)
+            $_SESSION['alumno_matricula']  = $tutor['matricula_alumno'];
+            $_SESSION['alumno_nombre']     = $tutor['nombre_alumno'] . ' ' . $tutor['apellido_paterno'] . ' ' . $tutor['apellido_materno'];
             
             // Redireccionamos al portal de seguimiento (padres.php)
             header("Location: padres.php");
             exit;
         } else {
-            // Mensaje genérico de seguridad
+            // Mensaje generico de seguridad
             $error_message = "La matrícula o clave de acceso no coinciden con nuestros registros.";
         }
 
