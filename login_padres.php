@@ -59,6 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['tutor_nombre']      = $tutor['nombre_tutor'];
             $_SESSION['tutor_id']          = $tutor['id_tutor'];
             $_SESSION['alumnos']           = $alumnos_sesion;
+            $_SESSION['password_actual']   = $tutor['password_tutor'];
 
             // Variables de compatibilidad (alumno activo = el que se uso para login)
             $_SESSION['alumno_matricula']  = $tutor['matricula_alumno'];
@@ -66,6 +67,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             
             // Regenerar ID de sesion para prevenir session fixation
             session_regenerate_id(true);
+
+            // Verificar si es primera vez (perfil no completado)
+            if (isset($tutor['perfil_completo']) && $tutor['perfil_completo'] == 0) {
+                header("Location: completar_perfil.php");
+                exit;
+            }
 
             // Redireccionamos al portal de seguimiento (padres.php)
             header("Location: padres.php");
