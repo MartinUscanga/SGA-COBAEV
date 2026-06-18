@@ -1,17 +1,6 @@
 <?php
-// Inicio de la sesión para el tutor
-// Configurar cookie de sesión con duración larga (30 días)
-// Esto evita que la sesión se pierda al cerrar la PWA
-ini_set('session.cookie_lifetime', 2592000); // 30 días
-ini_set('session.gc_maxlifetime', 2592000);  // 30 días
-session_set_cookie_params([
-    'lifetime' => 2592000,
-    'path' => '/',
-    'secure' => isset($_SERVER['HTTPS']),
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
-session_start();
+// Inicio de la sesion para el tutor (configuracion centralizada)
+require_once 'iniciar_sesion_padres.php';
 $error_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {

@@ -6,7 +6,7 @@
  * Devuelve JSON con avisos donde destinatario = 'todos' OR destinatario = matricula_alumno
  * Requiere sesion de tutor autenticada
  */
-session_start();
+require_once '../iniciar_sesion_padres.php';
 header('Content-Type: application/json; charset=utf-8');
 
 // Verificar autenticacion de tutor
