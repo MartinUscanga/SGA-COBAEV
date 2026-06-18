@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Create avisos_padres.php dedicated page for parents to view all avisos (full content) and mark them as read. Update padres.php dropdown to show only titles with a link to the new page. Update sw.js to open avisos_padres.php on notification click.",
+  "status": "pending",
+  "steps": [
+    "CREATE avisos_padres.php - New file following the pattern of padres.php/perfil_tutor.php: 1) Session init with 30-day cookie (same pattern as padres.php lines 16-27). 2) Auth check for tutor_autenticado. 3) require_once conexion.php. 4) Query all avisos for the user (same logic as api/obtener_avisos.php - todos OR matricula OR grupo matching). Include both read and unread, ordered by fecha_envio DESC. LEFT JOIN avisos_leidos to know read status. 5) Full HTML page with same head setup as padres.php (Tailwind CDN, Google Fonts, PWA manifest, same CSS vars). 6) Header: bg-vino sticky header with back button linking to padres.php, title 'Mis Avisos'. 7) Body: List of avisos as cards - each card shows titulo (bold), mensaje (full text), fecha_envio, and a 'Marcar como leido' button if not yet read. Cards for already-read avisos should have a subtle visual distinction (lighter bg or opacity). 8) Mobile-first: full-width cards with padding, responsive text sizes. 9) JS: marcarLeido(idAviso) function that calls api/marcar_leido.php via fetch POST, then updates the card UI. 10) Use same color scheme: bg-crema body, text-vino headers, bg-vino header bar.",
+    "UPDATE padres.php - Modify the avisos dropdown panel (id='panel-avisos'): 1) Change renderAvisos() function to show ONLY titles (remove the mensajeCorto display). 2) Remove the per-aviso 'marcar como leido' button from the dropdown. 3) Add a footer link at the bottom of the panel: 'Ver todos los avisos' linking to avisos_padres.php. 4) Keep the badge count working as before (showing count of unread). 5) Keep the auto-refresh of avisos count every 60 seconds.",
+    "UPDATE sw.js - Add a notificationclick event handler: When the user clicks on a notification, open avisos_padres.php. Use self.clients.openWindow('/avisos_padres.php') or focus an existing tab. Add the 'data' field with url '/avisos_padres.php' in the showNotification options so the click handler knows where to navigate."
+  ],
+  "acceptance_criteria": [
+    "avisos_padres.php exists and displays all avisos with full title + message + date",
+    "avisos_padres.php correctly shows read/unread status per user",
+    "avisos_padres.php has 'Marcar como leido' button that works via API call",
+    "avisos_padres.php uses same visual style as padres.php (Tailwind, same colors, fonts)",
+    "padres.php dropdown shows only aviso titles (no message preview)",
+    "padres.php dropdown has 'Ver todos los avisos' link to avisos_padres.php",
+    "sw.js opens avisos_padres.php when notification is clicked",
+    "All PHP files pass php -l syntax check"
+  ],
+  "verification": [
+    "Run: php -l avisos_padres.php && php -l padres.php && php -l sw.js (sw.js is JS, just check it exists and is valid)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
