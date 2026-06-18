@@ -16,6 +16,39 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
+$mensaje = '';
+$tipo_mensaje = '';
+
+// Procesar acciones POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $mensaje = 'Error: token de seguridad invalido. Recargue la pagina e intente de nuevo.';
+        $tipo_mensaje = 'error';
+    } else {
+        $accion = $_POST['accion'] ?? '';
+
+        try {
+            if ($accion === 'eliminar') {
+                $id_asistencia = intval($_POST['id_asistencia'] ?? 0);
+                if ($id_asistencia > 0) {
+                    $stmt = $pdo->prepare("DELETE FROM asistencias WHERE id_asistencia = :id");
+                    $stmt->execute(['id' => $id_asistencia]);
+                    $mensaje = 'Registro de asistencia eliminado exitosamente.';
+                    $tipo_mensaje = 'success';
+                } else {
+                    $mensaje = 'ID de registro invalido.';
+                    $tipo_mensaje = 'error';
+                }
+            }
+        } catch (PDOException $e) {
+            error_log('SGA Error [asistencias]: ' . $e->getMessage());
+            $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.';
+            $tipo_mensaje = 'error';
+        }
+    }
+}
+
 // Filtros
 $busqueda = trim($_GET['buscar'] ?? '');
 $fecha_inicio = $_GET['fecha_inicio'] ?? '';
@@ -59,7 +92,7 @@ $total_paginas = ceil($total / $por_pagina);
 $por_pagina_int = intval($por_pagina);
 $offset_int = intval($offset);
 $stmt = $pdo->prepare("
-    SELECT a.*, al.nombre, al.apellido_paterno, al.apellido_materno
+    SELECT a.*, al.nombre, al.apellido_paterno, al.apellido_materno, al.grupo
     FROM asistencias a
     INNER JOIN alumnos al ON a.matricula_alumno = al.matricula
     $where
@@ -89,6 +122,13 @@ require_once 'includes/header.php';
 ?>
 
         <div class="p-4 md:p-8 space-y-6">
+            <!-- Mensajes -->
+            <?php if ($mensaje): ?>
+            <div class="rounded-lg p-4 text-sm font-medium <?= $tipo_mensaje === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700' ?>">
+                <?= htmlspecialchars($mensaje) ?>
+            </div>
+            <?php endif; ?>
+
             <!-- Estadisticas resumen -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-white rounded-xl border border-zinc-200 p-4 flex items-center space-x-4">
@@ -150,20 +190,23 @@ require_once 'includes/header.php';
                                 <th class="px-4 py-3 text-left">Fecha</th>
                                 <th class="px-4 py-3 text-left">Hora</th>
                                 <th class="px-4 py-3 text-left">Alumno</th>
+                                <th class="px-4 py-3 text-left">Grupo</th>
                                 <th class="px-4 py-3 text-left">Matricula</th>
                                 <th class="px-4 py-3 text-center">Tipo</th>
                                 <th class="px-4 py-3 text-left">Observaciones</th>
+                                <th class="px-4 py-3 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-100">
                             <?php if (empty($asistencias)): ?>
-                            <tr><td colspan="6" class="px-4 py-8 text-center text-zinc-400">No se encontraron registros</td></tr>
+                            <tr><td colspan="8" class="px-4 py-8 text-center text-zinc-400">No se encontraron registros</td></tr>
                             <?php else: ?>
                             <?php foreach ($asistencias as $reg): ?>
                             <tr class="hover:bg-zinc-50/50">
                                 <td class="px-4 py-3 text-zinc-600"><?= htmlspecialchars($reg['fecha']) ?></td>
                                 <td class="px-4 py-3 text-zinc-600 font-mono text-xs"><?= htmlspecialchars($reg['hora']) ?></td>
                                 <td class="px-4 py-3 font-medium text-zinc-700"><?= htmlspecialchars($reg['nombre'] . ' ' . $reg['apellido_paterno'] . ' ' . $reg['apellido_materno']) ?></td>
+                                <td class="px-4 py-3 text-zinc-600 text-xs"><?= htmlspecialchars($reg['grupo'] ?? '-') ?></td>
                                 <td class="px-4 py-3 font-mono text-xs text-vino font-bold"><?= htmlspecialchars($reg['matricula_alumno']) ?></td>
                                 <td class="px-4 py-3 text-center">
                                     <?php if ($reg['tipo'] === 'Entrada'): ?>
@@ -173,6 +216,14 @@ require_once 'includes/header.php';
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3 text-zinc-400 text-xs"><?= htmlspecialchars($reg['observaciones'] ?? '-') ?></td>
+                                <td class="px-4 py-3 text-center">
+                                    <form method="POST" class="inline" onsubmit="return confirm('Eliminar este registro de asistencia?')">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+                                        <input type="hidden" name="accion" value="eliminar">
+                                        <input type="hidden" name="id_asistencia" value="<?= intval($reg['id_asistencia']) ?>">
+                                        <button type="submit" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100">Eliminar</button>
+                                    </form>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                             <?php endif; ?>
