@@ -56,7 +56,7 @@ messaging.onBackgroundMessage((payload) => {
         renotify: true,
         requireInteraction: true,
         vibrate: [200, 100, 200],
-        data: { url: '/avisos_padres.php' }
+        data: { url: payload.data?.url || '/avisos_padres.php' }
     });
 });
 

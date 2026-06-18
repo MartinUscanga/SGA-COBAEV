@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
                     foreach ($tokens as $row) {
                         if (!empty($row['token_fcm'])) {
-                            enviarAlertaFirebase($row['token_fcm'], $titulo);
+                            enviarAlertaFirebase($row['token_fcm'], $titulo, $titulo, '/avisos_padres.php');
                             $tokens_enviados++;
                         }
                     }
