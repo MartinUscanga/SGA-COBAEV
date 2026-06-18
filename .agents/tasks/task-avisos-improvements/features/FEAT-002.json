@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Overhaul admin/avisos.php to support 'Por grupo' destination, and send the actual aviso title in push notifications instead of the generic message. Also overhaul api/obtener_avisos.php and api/marcar_leido.php to use the new avisos_leidos table and support group-based filtering.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "ADMIN/AVISOS.PHP - Add 'Por grupo' option: 1) At the top of the file (after conexion.php require), query distinct groups: SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' ORDER BY grupo. 2) In the destinatario select, add a third option 'grupo' with text 'Por grupo'. 3) Add a new hidden-by-default select element (id='select-grupo') populated with the groups from the query. 4) Update the toggleMatricula() JS function to show/hide both the matricula input and the grupo select depending on the selected value. Rename function to toggleDestinatario(). 5) Update the form submit JS to handle the grupo case: create hidden input with value 'grupo:' + selected grupo value.",
     "ADMIN/AVISOS.PHP - Server-side validation for grupo: In the POST handler, after checking for 'todos' and matricula pattern, add an elseif for when destinatario starts with 'grupo:'. Extract the group name, validate it exists in alumnos table (SELECT COUNT(*) FROM alumnos WHERE grupo = :grupo). If valid, keep the destinatario as 'grupo:GROUPNAME'.",

@@ -3,7 +3,7 @@
  * API - Marcar aviso como leido
  * SGA COBAEV
  * 
- * Endpoint POST que recibe id_aviso y actualiza leido = 1
+ * Endpoint POST que recibe id_aviso e inserta en avisos_leidos.
  * Requiere sesion de tutor autenticada
  */
 session_start();
@@ -37,13 +37,37 @@ if ($id_aviso <= 0) {
 
 $matricula = $_SESSION['alumno_matricula'] ?? '';
 
+if (empty($matricula)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Matricula no disponible']);
+    exit;
+}
+
 try {
-    // Verificar que el aviso pertenece al usuario (destinatario = todos o su matricula)
+    // Verificar que el aviso pertenece al usuario (destinatario = todos, su matricula, o su grupo)
+    $stmt_check = $pdo->prepare("
+        SELECT a.id_aviso
+        FROM avisos a
+        INNER JOIN alumnos al ON al.matricula = :matricula
+        WHERE a.id_aviso = :id_aviso
+        AND (a.destinatario = 'todos' OR a.destinatario = :matricula2 OR a.destinatario = CONCAT('grupo:', al.grupo))
+    ");
+    $stmt_check->execute([
+        'matricula' => $matricula,
+        'id_aviso' => $id_aviso,
+        'matricula2' => $matricula
+    ]);
+
+    if (!$stmt_check->fetch()) {
+        http_response_code(403);
+        echo json_encode(['error' => 'No tienes acceso a este aviso']);
+        exit;
+    }
+
+    // Insertar en avisos_leidos (IGNORE maneja duplicados)
     $stmt = $pdo->prepare("
-        UPDATE avisos 
-        SET leido = 1 
-        WHERE id_aviso = :id_aviso 
-        AND (destinatario = 'todos' OR destinatario = :matricula)
+        INSERT IGNORE INTO avisos_leidos (id_aviso, matricula_alumno)
+        VALUES (:id_aviso, :matricula)
     ");
     $stmt->execute([
         'id_aviso' => $id_aviso,

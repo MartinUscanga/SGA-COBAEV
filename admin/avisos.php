@@ -22,6 +22,15 @@ if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado']
 
 require_once '../conexion.php';
 
+// Obtener grupos disponibles para el select
+$grupos = [];
+try {
+    $stmt_grupos = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' ORDER BY grupo");
+    $grupos = $stmt_grupos->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    error_log('SGA Error [avisos grupos]: ' . $e->getMessage());
+}
+
 // Generar token CSRF si no existe
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -45,17 +54,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             if (empty($titulo) || empty($mensaje)) {
                 $mensaje_error = 'El titulo y mensaje son obligatorios.';
-            } elseif ($destinatario !== 'todos' && !preg_match('/^[A-Z]\d{7}$/i', $destinatario)) {
-                $mensaje_error = 'El destinatario debe ser "todos" o una matricula valida (letra + 7 digitos).';
+            } elseif ($destinatario !== 'todos' && !preg_match('/^[A-Z]\d{7}$/i', $destinatario) && !str_starts_with($destinatario, 'grupo:')) {
+                $mensaje_error = 'El destinatario debe ser "todos", una matricula valida o un grupo valido.';
             } else {
-                // Validar que la matricula existe si no es "todos"
-                if ($destinatario !== 'todos') {
+                // Validar que la matricula existe si es una matricula
+                if ($destinatario !== 'todos' && !str_starts_with($destinatario, 'grupo:')) {
                     $stmt_check = $pdo->prepare("SELECT COUNT(*) as existe FROM alumnos WHERE matricula = :mat");
                     $stmt_check->execute(['mat' => strtoupper($destinatario)]);
                     if ($stmt_check->fetch()['existe'] == 0) {
                         $mensaje_error = 'La matricula especificada no existe en el sistema.';
                     }
                     $destinatario = strtoupper($destinatario);
+                }
+
+                // Validar que el grupo existe si es grupo
+                if (str_starts_with($destinatario, 'grupo:')) {
+                    $grupo_nombre = substr($destinatario, 6);
+                    $stmt_check = $pdo->prepare("SELECT COUNT(*) as existe FROM alumnos WHERE grupo = :grupo");
+                    $stmt_check->execute(['grupo' => $grupo_nombre]);
+                    if ($stmt_check->fetch()['existe'] == 0) {
+                        $mensaje_error = 'El grupo especificado no existe en el sistema.';
+                    }
                 }
 
                 if (empty($mensaje_error)) {
@@ -69,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         'creado_por' => $_SESSION['username'] ?? $_SESSION['usuario_nombre'] ?? 'admin'
                     ]);
 
-                    // Enviar notificación push a los padres afectados
+                    // Enviar notificacion push a los padres afectados
                     require_once '../enviar_notificacion.php';
                     
                     $tokens_enviados = 0;
@@ -78,8 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         // Obtener TODOS los tokens activos
                         $stmt_tokens = $pdo->query("SELECT DISTINCT token_fcm FROM dispositivos_padres");
                         $tokens = $stmt_tokens->fetchAll();
+                    } elseif (str_starts_with($destinatario, 'grupo:')) {
+                        // Obtener tokens de los alumnos del grupo
+                        $grupo_nombre = substr($destinatario, 6);
+                        $stmt_tokens = $pdo->prepare("SELECT DISTINCT dp.token_fcm FROM dispositivos_padres dp INNER JOIN alumnos a ON dp.matricula_alumno = a.matricula WHERE a.grupo = :grupo");
+                        $stmt_tokens->execute(['grupo' => $grupo_nombre]);
+                        $tokens = $stmt_tokens->fetchAll();
                     } else {
-                        // Obtener token de la matrícula específica
+                        // Obtener token de la matricula especifica
                         $stmt_tokens = $pdo->prepare("SELECT token_fcm FROM dispositivos_padres WHERE matricula_alumno = :matricula");
                         $stmt_tokens->execute(['matricula' => $destinatario]);
                         $tokens = $stmt_tokens->fetchAll();
@@ -87,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
                     foreach ($tokens as $row) {
                         if (!empty($row['token_fcm'])) {
-                            enviarAlertaFirebase($row['token_fcm'], "Tienes un nuevo aviso, revisa tu bandeja.");
+                            enviarAlertaFirebase($row['token_fcm'], $titulo);
                             $tokens_enviados++;
                         }
                     }
@@ -176,11 +201,18 @@ require_once 'includes/header.php';
                         <div>
                             <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Destinatario</label>
                             <div class="flex items-center space-x-3">
-                                <select name="destinatario" id="select-destinatario" onchange="toggleMatricula()" class="flex-1 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
+                                <select name="destinatario" id="select-destinatario" onchange="toggleDestinatario()" class="flex-1 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
                                     <option value="todos">Todos los padres</option>
                                     <option value="matricula">Matricula especifica</option>
+                                    <option value="grupo">Por grupo</option>
                                 </select>
                                 <input type="text" name="matricula_especifica" id="input-matricula" placeholder="Ej: B2024001" maxlength="50" class="hidden flex-1 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-vino transition-colors">
+                                <select name="grupo_especifico" id="select-grupo" class="hidden flex-1 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
+                                    <option value="">Selecciona un grupo</option>
+                                    <?php foreach ($grupos as $grupo): ?>
+                                        <option value="<?= htmlspecialchars($grupo) ?>"><?= htmlspecialchars($grupo) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -239,6 +271,8 @@ require_once 'includes/header.php';
                                         <td class="px-6 py-3">
                                             <?php if ($aviso['destinatario'] === 'todos'): ?>
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Todos</span>
+                                            <?php elseif (str_starts_with($aviso['destinatario'], 'grupo:')): ?>
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700"><?= htmlspecialchars(substr($aviso['destinatario'], 6)) ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 font-mono"><?= htmlspecialchars($aviso['destinatario']) ?></span>
                                             <?php endif; ?>
@@ -287,32 +321,53 @@ require_once 'includes/header.php';
         </div>
 
         <script>
-        // Toggle campo de matricula
-        function toggleMatricula() {
+        // Toggle campos de destinatario
+        function toggleDestinatario() {
             const select = document.getElementById('select-destinatario');
             const input = document.getElementById('input-matricula');
+            const selectGrupo = document.getElementById('select-grupo');
             if (select.value === 'matricula') {
                 input.classList.remove('hidden');
                 input.required = true;
+                selectGrupo.classList.add('hidden');
+                selectGrupo.required = false;
+            } else if (select.value === 'grupo') {
+                selectGrupo.classList.remove('hidden');
+                selectGrupo.required = true;
+                input.classList.add('hidden');
+                input.required = false;
+                input.value = '';
             } else {
                 input.classList.add('hidden');
                 input.required = false;
                 input.value = '';
+                selectGrupo.classList.add('hidden');
+                selectGrupo.required = false;
             }
         }
 
-        // Antes de enviar, poner la matrícula como valor real del destinatario
+        // Antes de enviar, poner el valor real del destinatario
         document.querySelector('form[method="POST"]').addEventListener('submit', function(e) {
             const select = document.getElementById('select-destinatario');
             const input = document.getElementById('input-matricula');
+            const selectGrupo = document.getElementById('select-grupo');
             if (select.value === 'matricula' && input.value.trim()) {
-                // Crear un input hidden con el valor real de la matrícula
+                // Crear un input hidden con el valor real de la matricula
                 const hidden = document.createElement('input');
                 hidden.type = 'hidden';
                 hidden.name = 'destinatario';
                 hidden.value = input.value.trim().toUpperCase();
                 this.appendChild(hidden);
-                // Deshabilitar el select para que no envíe "matricula" literal
+                // Deshabilitar el select para que no envie "matricula" literal
+                select.disabled = true;
+            } else if (select.value === 'grupo' && selectGrupo.value) {
+                // Crear un input hidden con el valor del grupo
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'destinatario';
+                hidden.value = 'grupo:' + selectGrupo.value;
+                this.appendChild(hidden);
+                // Deshabilitar el select para que no envie "grupo" literal
                 select.disabled = true;
             }
         });
