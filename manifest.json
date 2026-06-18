@@ -2,10 +2,10 @@
   "name": "SGA COBAEV",
   "short_name": "SGA Padres",
   "description": "Notificaciones y seguimiento escolar de COBAEV",
-  "start_url": "index.php",
+  "start_url": "padres.php",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#005a9c",
+  "theme_color": "#5c1931",
   "icons": [
     {
       "src": "logo.png",
