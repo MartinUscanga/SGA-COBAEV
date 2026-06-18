@@ -1,15 +1,7 @@
 <?php
 // procesar_qr.php
-session_start();
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
-
-// Verificar autenticacion
-if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'icon' => 'error', 'title' => 'No autorizado', 'message' => 'Sesion no valida. Inicia sesion nuevamente.']);
-    exit;
-}
 
 require_once 'conexion.php';
 require 'enviar_notificacion.php';
@@ -138,8 +130,6 @@ try {
     ]);
 
 } catch (PDOException $e) {
-    error_log("procesar_qr.php PDOException: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'icon' => 'error', 'title' => 'Error del servidor', 'message' => 'Ocurrio un error al procesar la solicitud. Intenta de nuevo.']);
+    echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]);
 }
 ?>
