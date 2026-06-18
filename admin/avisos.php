@@ -14,11 +14,7 @@
  *   leido TINYINT NOT NULL DEFAULT 0
  * ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
  */
-session_start();
-if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
-    header("Location: ../login_admin.php");
-    exit;
-}
+require_once 'includes/auth.php';
 
 require_once '../conexion.php';
 

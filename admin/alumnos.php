@@ -3,11 +3,7 @@
  * Gestion de Alumnos - CRUD Completo
  * SGA COBAEV - Panel Administrativo
  */
-session_start();
-if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
-    header("Location: ../login_admin.php");
-    exit;
-}
+require_once 'includes/auth.php';
 
 require_once '../conexion.php';
 

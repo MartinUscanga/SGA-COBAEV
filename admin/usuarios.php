@@ -4,14 +4,10 @@
  * SGA COBAEV - Panel Administrativo
  * Solo accesible para usuarios con rol Admin
  */
-session_start();
-if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
-    header("Location: ../login_admin.php");
-    exit;
-}
+require_once 'includes/auth.php';
 
-// Solo los roles Admin y Prefecto pueden gestionar usuarios
-if (!isset($_SESSION['usuario_rol']) || !in_array($_SESSION['usuario_rol'], ['Admin', 'Prefecto'])) {
+// Solo los roles Superadmin, Admin y Prefecto pueden gestionar usuarios
+if (!isset($_SESSION['usuario_rol']) || !in_array($_SESSION['usuario_rol'], ['Superadmin', 'Admin', 'Prefecto'])) {
     header("Location: index.php");
     exit;
 }
