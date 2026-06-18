@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-001",
+  "type": "refactor",
+  "description": "Extract shared layout components (sidebar, header, footer, head) into reusable includes, then refactor all 7 admin pages to use them. This addresses items 7-10 of the requirements: shared head.php, sidebar.php, header.php, footer.php in admin/includes/. The sidebar must include ALL navigation links (Dashboard, Alumnos, Tutores, Asistencias, Usuarios, Dispositivos, Avisos) uniformly across all pages.",
+  "status": "in_progress",
+  "steps": [
+    "Create directory admin/includes/",
+    "Create admin/includes/head.php - Extract the common <head> content shared by all admin pages: meta charset, viewport, robots, TailwindCSS CDN script, Google Fonts links, and the <style> block with font-serif-elegant, font-sans-clean, bg-crema, text-vino, bg-vino, border-vino, text-dorado, bg-dorado classes. The file should accept a $page_title variable for the <title> tag.",
+    "Create admin/includes/sidebar.php - Extract the full sidebar <aside> element. It must include ALL 7 nav links: Dashboard (index.php), Alumnos (alumnos.php), Tutores (tutores.php), Asistencias (asistencias.php), Usuarios (usuarios.php), Dispositivos (dispositivos.php), Avisos (avisos.php). Use $pagina_actual variable to highlight the active page (bg-white/10 text-white for active, text-white/70 hover:bg-white/10 hover:text-white for inactive). Include the user info section at the bottom.",
+    "Create admin/includes/header.php - Extract the sticky <header> bar with the mobile toggle button, page title (accept $page_header variable), username display, and logout link. Also include the mobile overlay div and the sidebar-overlay element.",
+    "Create admin/includes/footer.php - Extract the closing </main>, the toggleSidebar() <script>, and closing </body></html> tags.",
+    "Refactor admin/index.php to use: require head.php (with $page_title='Dashboard - Panel Admin SGA COBAEV'), require sidebar.php, require header.php (with $page_header='Dashboard'), and require footer.php. Remove all duplicated HTML.",
+    "Refactor admin/alumnos.php the same way (title: 'Alumnos - Panel Admin SGA COBAEV', header: 'Gestion de Alumnos').",
+    "Refactor admin/tutores.php the same way (title: 'Tutores - Panel Admin SGA COBAEV', header: 'Gestion de Tutores').",
+    "Refactor admin/asistencias.php the same way (title: 'Asistencias - Panel Admin SGA COBAEV', header: 'Historial de Asistencias').",
+    "Refactor admin/usuarios.php the same way (title: 'Usuarios - Panel Admin SGA COBAEV', header: 'Usuarios del Sistema').",
+    "Refactor admin/dispositivos.php the same way (title: 'Dispositivos - Panel Admin SGA COBAEV', header: 'Dispositivos Registrados').",
+    "Refactor admin/avisos.php the same way (title: 'Avisos - Panel Admin SGA COBAEV', header: 'Avisos a Padres')."
+  ],
+  "acceptance_criteria": [
+    "admin/includes/head.php, sidebar.php, header.php, footer.php all exist",
+    "All 7 admin pages (index, alumnos, tutores, asistencias, usuarios, dispositivos, avisos) use require/include for the shared components instead of inline HTML",
+    "The sidebar in sidebar.php includes all 7 navigation links including Avisos",
+    "Each page sets $pagina_actual before including sidebar.php so the active state highlights correctly",
+    "php -l passes on all modified files with no syntax errors"
+  ],
+  "verification": [
+    "Run: find /projects/sandbox/SGA-COBAEV/admin -name '*.php' -exec php -l {} \\;",
+    "Run: php -l /projects/sandbox/SGA-COBAEV/admin/includes/head.php && php -l /projects/sandbox/SGA-COBAEV/admin/includes/sidebar.php && php -l /projects/sandbox/SGA-COBAEV/admin/includes/header.php && php -l /projects/sandbox/SGA-COBAEV/admin/includes/footer.php"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

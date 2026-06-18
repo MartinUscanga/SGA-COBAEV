@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Fix all bug fixes and security improvements: password hashing (items 1-4), PDO error handling (item 5), input validation (item 6), alumnos.php INSERT/UPDATE missing fields (item 11), tutores.php wrong field names and missing fields (item 12), avisos.php destinatario validation (item 13).",
+  "status": "in_progress",
+  "steps": [
+    "Update login_admin.php: Replace the plain text comparison `$password === $user['password_admin']` with `password_verify($password, $user['password_admin'])`. Keep the existing error_log pattern already in place for PDOExceptions.",
+    "Update admin/usuarios.php: In the 'crear' action, wrap the password with password_hash(trim($_POST['password_admin']), PASSWORD_DEFAULT) before inserting. In the 'editar' action, similarly hash the password before updating. Add validation: username must be at least 3 characters, password must be at least 6 characters.",
+    "Update admin/tutores.php: (a) Fix the 'crear' INSERT statement - change column 'telefono' to 'telefono_tutor', remove 'creado_el' (not in schema), add email_tutor and relacion_parentesco columns. The INSERT should be: INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono_tutor, email_tutor, relacion_parentesco) VALUES (...). Hash the password with password_hash(). (b) Fix the 'editar' UPDATE - change 'telefono' to 'telefono_tutor', add email_tutor and relacion_parentesco. Read from $_POST['telefono_tutor'] (matching the form's name attribute). If password_tutor is provided, hash and update it too. (c) Add validation: password must be at least 6 characters when creating.",
+    "Update admin/alumnos.php: (a) In the 'crear' INSERT, add the missing fields: grupo, fecha_nacimiento, email, telefono, direccion. The INSERT should include all 8 fields (matricula, nombre, apellido_paterno, apellido_materno, grupo, fecha_nacimiento, email, telefono, direccion). (b) In the 'editar' UPDATE, add the same missing fields. (c) Add matricula validation: must match regex /^[A-Z]\\d{7}$/ (letter followed by 7 digits, total 8 chars).",
+    "Update admin/avisos.php: Add server-side validation for the destinatario field. After receiving $_POST['destinatario'], check: if it is not 'todos', validate it looks like a valid matricula (matches /^[A-Z]\\d{7}$/) AND verify the matricula exists in the alumnos table. If validation fails, set $mensaje_error and skip the insert.",
+    "Hide PDO error details from users across all admin files. In all catch(PDOException $e) blocks in admin/alumnos.php, admin/tutores.php, admin/usuarios.php, admin/dispositivos.php, and admin/avisos.php: replace `$mensaje = 'Error: ' . $e->getMessage()` with `error_log('SGA Error: ' . $e->getMessage()); $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.'` (or equivalent generic message). Keep the existing good pattern in login_admin.php unchanged.",
+    "Add input validation in admin/alumnos.php: before INSERT, validate that matricula matches /^[A-Z]\\d{7}$/i (case-insensitive since strtoupper is applied), nombre and apellido_paterno are not empty and are max 50 chars.",
+    "Add input validation in admin/usuarios.php: username must be alphanumeric 3-50 chars, password minimum 6 chars when provided."
+  ],
+  "acceptance_criteria": [
+    "login_admin.php uses password_verify() instead of plain text comparison",
+    "usuarios.php hashes passwords with password_hash() on create and edit",
+    "tutores.php INSERT uses correct column names (telefono_tutor, email_tutor, relacion_parentesco) and hashes password_tutor",
+    "tutores.php UPDATE uses correct column names and includes email_tutor, relacion_parentesco",
+    "alumnos.php INSERT includes all 9 fields: matricula, nombre, apellido_paterno, apellido_materno, grupo, fecha_nacimiento, email, telefono, direccion",
+    "alumnos.php UPDATE includes grupo, fecha_nacimiento, email, telefono, direccion",
+    "avisos.php validates destinatario server-side - rejects non-'todos' values that don't match matricula format",
+    "All catch blocks show generic error messages to user and log details via error_log()",
+    "php -l passes on all modified files"
+  ],
+  "verification": [
+    "Run: find /projects/sandbox/SGA-COBAEV -name '*.php' -path '*/admin/*' -exec php -l {} \\;",
+    "Run: php -l /projects/sandbox/SGA-COBAEV/login_admin.php",
+    "Run: grep -n 'password_verify' /projects/sandbox/SGA-COBAEV/login_admin.php",
+    "Run: grep -n 'password_hash' /projects/sandbox/SGA-COBAEV/admin/usuarios.php /projects/sandbox/SGA-COBAEV/admin/tutores.php",
+    "Run: grep -n 'getMessage' /projects/sandbox/SGA-COBAEV/admin/alumnos.php /projects/sandbox/SGA-COBAEV/admin/tutores.php /projects/sandbox/SGA-COBAEV/admin/usuarios.php /projects/sandbox/SGA-COBAEV/admin/dispositivos.php /projects/sandbox/SGA-COBAEV/admin/avisos.php | grep -v error_log"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

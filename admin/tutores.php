@@ -30,25 +30,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono, creado_el) VALUES (:matricula, :nombre, :password, :telefono, NOW())");
-            $stmt->execute([
-                'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
-                'nombre' => trim($_POST['nombre_tutor']),
-                'password' => trim($_POST['password_tutor']),
-                'telefono' => trim($_POST['telefono'] ?? '')
-            ]);
-            $mensaje = 'Tutor registrado exitosamente.';
-            $tipo_mensaje = 'success';
+            $password_raw = trim($_POST['password_tutor']);
+            if (strlen($password_raw) < 6) {
+                $mensaje = 'La contrasena debe tener al menos 6 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono_tutor, email_tutor, relacion_parentesco) VALUES (:matricula, :nombre, :password, :telefono, :email, :parentesco)");
+                $stmt->execute([
+                    'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
+                    'nombre' => trim($_POST['nombre_tutor']),
+                    'password' => password_hash($password_raw, PASSWORD_DEFAULT),
+                    'telefono' => trim($_POST['telefono_tutor'] ?? ''),
+                    'email' => trim($_POST['email_tutor'] ?? ''),
+                    'parentesco' => $_POST['relacion_parentesco'] ?? ''
+                ]);
+                $mensaje = 'Tutor registrado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'editar') {
-            $stmt = $pdo->prepare("UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono, matricula_alumno = :matricula WHERE id_tutor = :id");
-            $stmt->execute([
-                'nombre' => trim($_POST['nombre_tutor']),
-                'telefono' => trim($_POST['telefono'] ?? ''),
-                'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
-                'id' => $_POST['id_tutor']
-            ]);
-            $mensaje = 'Tutor actualizado exitosamente.';
-            $tipo_mensaje = 'success';
+            $password_raw = trim($_POST['password_tutor'] ?? '');
+            if (!empty($password_raw) && strlen($password_raw) < 6) {
+                $mensaje = 'La contrasena debe tener al menos 6 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $campos = "nombre_tutor = :nombre, telefono_tutor = :telefono, email_tutor = :email, relacion_parentesco = :parentesco, matricula_alumno = :matricula";
+                $params = [
+                    'nombre' => trim($_POST['nombre_tutor']),
+                    'telefono' => trim($_POST['telefono_tutor'] ?? ''),
+                    'email' => trim($_POST['email_tutor'] ?? ''),
+                    'parentesco' => $_POST['relacion_parentesco'] ?? '',
+                    'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
+                    'id' => $_POST['id_tutor']
+                ];
+                if (!empty($password_raw)) {
+                    $campos .= ", password_tutor = :password";
+                    $params['password'] = password_hash($password_raw, PASSWORD_DEFAULT);
+                }
+                $stmt = $pdo->prepare("UPDATE tutores SET $campos WHERE id_tutor = :id");
+                $stmt->execute($params);
+                $mensaje = 'Tutor actualizado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'eliminar') {
             $stmt = $pdo->prepare("DELETE FROM tutores WHERE id_tutor = :id");
             $stmt->execute(['id' => $_POST['id_tutor']]);
@@ -56,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'success';
         }
     } catch (PDOException $e) {
-        $mensaje = 'Error: ' . $e->getMessage();
+        error_log('SGA Error [tutores]: ' . $e->getMessage());
+        $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.';
         $tipo_mensaje = 'error';
     }
     } // end CSRF validation
@@ -78,7 +101,7 @@ if ($busqueda !== '') {
 }
 
 // Total registros
-$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM tutores t LEFT JOIN alumnos a ON t.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci $where");
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM tutores t LEFT JOIN alumnos a ON t.matricula_alumno = a.matricula $where");
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
@@ -90,7 +113,7 @@ $offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT t.*, a.nombre AS alumno_nombre, a.apellido_paterno AS alumno_ap, a.apellido_materno AS alumno_am
     FROM tutores t
-    LEFT JOIN alumnos a ON t.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci
+    LEFT JOIN alumnos a ON t.matricula_alumno = a.matricula
     $where
     ORDER BY t.nombre_tutor
     LIMIT $por_pagina_int OFFSET $offset_int
@@ -110,94 +133,13 @@ if (isset($_GET['editar'])) {
 $alumnos_lista = $pdo->query("SELECT matricula, nombre, apellido_paterno FROM alumnos ORDER BY apellido_paterno, nombre")->fetchAll();
 
 $pagina_actual = 'tutores';
+$page_title = 'Tutores - Panel Admin SGA COBAEV';
+$page_header = 'Gestion de Tutores';
+
+require_once 'includes/head.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Tutores - Panel Admin SGA COBAEV</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        .font-serif-elegant { font-family: 'Playfair Display', serif; }
-        .font-sans-clean { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .bg-crema { background-color: #f7f3eb; }
-        .text-vino { color: #5c1931; }
-        .bg-vino { background-color: #5c1931; }
-        .border-vino { border-color: #5c1931; }
-        .text-dorado { color: #a48253; }
-        .bg-dorado { background-color: #a48253; }
-    </style>
-</head>
-<body class="bg-crema font-sans-clean min-h-screen flex">
-
-    <!-- Sidebar -->
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-vino text-white transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out flex flex-col">
-        <div class="p-6 border-b border-white/10">
-            <h1 class="font-serif-elegant text-xl font-bold tracking-wide">SGA COBAEV</h1>
-            <p class="text-xs text-white/60 mt-1">Panel Administrativo</p>
-        </div>
-        <nav class="flex-1 p-4 space-y-1">
-            <a href="index.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                Dashboard
-            </a>
-            <a href="alumnos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                Alumnos
-            </a>
-            <a href="tutores.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium bg-white/10 text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                Tutores
-            </a>
-            <a href="asistencias.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                Asistencias
-            </a>
-            <a href="usuarios.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Usuarios
-            </a>
-            <a href="dispositivos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                Dispositivos
-            </a>
-        </nav>
-        <div class="p-4 border-t border-white/10">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
-                    <?= strtoupper(substr($_SESSION['usuario_nombre'] ?? 'A', 0, 1)) ?>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate"><?= htmlspecialchars($_SESSION['usuario_nombre'] ?? 'Admin') ?></p>
-                    <p class="text-xs text-white/50"><?= htmlspecialchars($_SESSION['usuario_rol'] ?? 'Admin') ?></p>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Overlay mobile -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden" onclick="toggleSidebar()"></div>
-
-    <!-- Main Content -->
-    <main class="flex-1 md:ml-64 min-h-screen">
-        <!-- Header -->
-        <header class="bg-white border-b border-zinc-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-            <div class="flex items-center space-x-4">
-                <button onclick="toggleSidebar()" class="md:hidden text-zinc-600 hover:text-vino">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-                <h2 class="font-serif-elegant text-xl font-bold text-vino">Gestion de Tutores</h2>
-            </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-sm text-zinc-500 hidden sm:inline"><?= htmlspecialchars($_SESSION['usuario_nombre'] ?? '') ?></span>
-                <a href="../logout.php" class="text-xs font-bold text-white bg-vino hover:bg-opacity-90 px-4 py-2 rounded-lg transition-colors">Cerrar Sesion</a>
-            </div>
-        </header>
 
         <div class="p-4 md:p-8 space-y-6">
             <!-- Mensajes -->
@@ -346,15 +288,5 @@ $pagina_actual = 'tutores';
                 <?php endif; ?>
             </div>
         </div>
-    </main>
 
-    <script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        sidebar.classList.toggle('-translate-x-full');
-        overlay.classList.toggle('hidden');
-    }
-    </script>
-</body>
-</html>
+<?php require_once 'includes/footer.php'; ?>

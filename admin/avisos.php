@@ -45,7 +45,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             if (empty($titulo) || empty($mensaje)) {
                 $mensaje_error = 'El titulo y mensaje son obligatorios.';
+            } elseif ($destinatario !== 'todos' && !preg_match('/^[A-Z]\d{7}$/i', $destinatario)) {
+                $mensaje_error = 'El destinatario debe ser "todos" o una matricula valida (letra + 7 digitos).';
             } else {
+                // Validar que la matricula existe si no es "todos"
+                if ($destinatario !== 'todos') {
+                    $stmt_check = $pdo->prepare("SELECT COUNT(*) as existe FROM alumnos WHERE matricula = :mat");
+                    $stmt_check->execute(['mat' => strtoupper($destinatario)]);
+                    if ($stmt_check->fetch()['existe'] == 0) {
+                        $mensaje_error = 'La matricula especificada no existe en el sistema.';
+                    }
+                    $destinatario = strtoupper($destinatario);
+                }
+
+                if (empty($mensaje_error)) {
                 try {
                     // Guardar aviso en BD
                     $stmt = $pdo->prepare("INSERT INTO avisos (titulo, mensaje, destinatario, creado_por, fecha_envio) VALUES (:titulo, :mensaje, :destinatario, :creado_por, NOW())");
@@ -81,8 +94,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
                     $mensaje_exito = "Aviso enviado correctamente. Notificación push enviada a {$tokens_enviados} dispositivo(s).";
                 } catch (PDOException $e) {
-                    $mensaje_error = 'Error al enviar aviso: ' . $e->getMessage();
+                    error_log('SGA Error [avisos crear]: ' . $e->getMessage());
+                    $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
                 }
+                } // end empty($mensaje_error)
             }
         } elseif ($accion === 'eliminar_aviso') {
             $id_aviso = intval($_POST['id_aviso'] ?? 0);
@@ -92,7 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $stmt->execute(['id' => $id_aviso]);
                     $mensaje_exito = 'Aviso eliminado correctamente.';
                 } catch (PDOException $e) {
-                    $mensaje_error = 'Error al eliminar: ' . $e->getMessage();
+                    error_log('SGA Error [avisos eliminar]: ' . $e->getMessage());
+                    $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
                 }
             }
         }
@@ -114,103 +130,19 @@ try {
 } catch (PDOException $e) {
     $avisos = [];
     $total_avisos = 0;
-    $mensaje_error = 'Error al cargar avisos: ' . $e->getMessage();
+    error_log('SGA Error [avisos listar]: ' . $e->getMessage());
+    $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
 }
 
 $total_paginas = ceil($total_avisos / $por_pagina);
 $pagina_actual = 'avisos';
+$page_title = 'Avisos - Panel Admin SGA COBAEV';
+$page_header = 'Avisos a Padres';
+
+require_once 'includes/head.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Avisos - Panel Admin SGA COBAEV</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        .font-serif-elegant { font-family: 'Playfair Display', serif; }
-        .font-sans-clean { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .bg-crema { background-color: #f7f3eb; }
-        .text-vino { color: #5c1931; }
-        .bg-vino { background-color: #5c1931; }
-        .border-vino { border-color: #5c1931; }
-        .text-dorado { color: #a48253; }
-        .bg-dorado { background-color: #a48253; }
-    </style>
-</head>
-<body class="bg-crema font-sans-clean min-h-screen flex">
-
-    <!-- Sidebar -->
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-vino text-white transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out flex flex-col">
-        <div class="p-6 border-b border-white/10">
-            <h1 class="font-serif-elegant text-xl font-bold tracking-wide">SGA COBAEV</h1>
-            <p class="text-xs text-white/60 mt-1">Panel Administrativo</p>
-        </div>
-        <nav class="flex-1 p-4 space-y-1">
-            <a href="index.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                Dashboard
-            </a>
-            <a href="alumnos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                Alumnos
-            </a>
-            <a href="tutores.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                Tutores
-            </a>
-            <a href="asistencias.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                Asistencias
-            </a>
-            <a href="usuarios.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Usuarios
-            </a>
-            <a href="dispositivos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                Dispositivos
-            </a>
-            <a href="avisos.php" class="flex items-center px-4 py-2.5 rounded-lg text-sm font-medium bg-white/10 text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                Avisos
-            </a>
-        </nav>
-        <div class="p-4 border-t border-white/10">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
-                    <?= strtoupper(substr($_SESSION['usuario_nombre'] ?? 'A', 0, 1)) ?>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate"><?= htmlspecialchars($_SESSION['usuario_nombre'] ?? 'Admin') ?></p>
-                    <p class="text-xs text-white/50"><?= htmlspecialchars($_SESSION['usuario_rol'] ?? 'Admin') ?></p>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Overlay mobile -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden" onclick="toggleSidebar()"></div>
-
-    <!-- Main Content -->
-    <main class="flex-1 md:ml-64 min-h-screen">
-        <!-- Header -->
-        <header class="bg-white border-b border-zinc-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-            <div class="flex items-center space-x-4">
-                <button onclick="toggleSidebar()" class="md:hidden text-zinc-600 hover:text-vino">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-                <h2 class="font-serif-elegant text-xl font-bold text-vino">Avisos a Padres</h2>
-            </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-sm text-zinc-500 hidden sm:inline"><?= htmlspecialchars($_SESSION['usuario_nombre'] ?? '') ?></span>
-                <a href="../logout.php" class="text-xs font-bold text-white bg-vino hover:bg-opacity-90 px-4 py-2 rounded-lg transition-colors">Cerrar Sesion</a>
-            </div>
-        </header>
 
         <div class="p-4 md:p-8 space-y-6">
 
@@ -233,7 +165,7 @@ $pagina_actual = 'avisos';
                     <p class="text-xs text-zinc-400 mt-0.5">Los avisos se mostraran en el portal de padres</p>
                 </div>
                 <form method="POST" class="p-6 space-y-4">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="accion" value="crear_aviso">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -322,7 +254,7 @@ $pagina_actual = 'avisos';
                                         <td class="px-6 py-3 text-xs text-zinc-500"><?= date('d/m/Y H:i', strtotime($aviso['fecha_envio'])) ?></td>
                                         <td class="px-6 py-3 text-center">
                                             <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar este aviso?')">
-                                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                                 <input type="hidden" name="accion" value="eliminar_aviso">
                                                 <input type="hidden" name="id_aviso" value="<?= $aviso['id_aviso'] ?>">
                                                 <button type="submit" class="text-rose-500 hover:text-rose-700 transition-colors" title="Eliminar">
@@ -353,17 +285,8 @@ $pagina_actual = 'avisos';
                 <?php endif; ?>
             </div>
         </div>
-    </main>
 
-    <script>
-        // Toggle sidebar mobile
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            sidebar.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
-        }
-
+        <script>
         // Toggle campo de matricula
         function toggleMatricula() {
             const select = document.getElementById('select-destinatario');
@@ -393,6 +316,6 @@ $pagina_actual = 'avisos';
                 select.disabled = true;
             }
         });
-    </script>
-</body>
-</html>
+        </script>
+
+<?php require_once 'includes/footer.php'; ?>

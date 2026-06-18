@@ -28,16 +28,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->execute(['username' => $username]);
         $user = $stmt->fetch();
 
-        // Validar credenciales
-        // Nota: En producción usa password_verify() con hashes
-        if ($user && $password === $user['password_admin']) {
+        // Validar credenciales con hash seguro
+        $credenciales_validas = false;
+
+        if ($user) {
+            if (password_verify($password, $user['password_admin'])) {
+                // Password already hashed with bcrypt
+                $credenciales_validas = true;
+            } elseif (strpos($user['password_admin'], '$2y$') !== 0 && $password === $user['password_admin']) {
+                // Fallback: plaintext password detected (not a bcrypt hash).
+                // Verify via plain comparison, then rehash for future logins.
+                $credenciales_validas = true;
+                $new_hash = password_hash($password, PASSWORD_DEFAULT);
+                $rehash_sql = "UPDATE usuarios_admin SET password_admin = :hash WHERE id_usuario = :id";
+                $rehash_stmt = $pdo->prepare($rehash_sql);
+                $rehash_stmt->execute(['hash' => $new_hash, 'id' => $user['id_usuario']]);
+            }
+        }
+
+        if ($credenciales_validas) {
             
-            // Actualizar último acceso
+            // Actualizar ultimo acceso
             $update_sql = "UPDATE usuarios_admin SET ultimo_acceso = NOW() WHERE id_usuario = :id";
             $update_stmt = $pdo->prepare($update_sql);
             $update_stmt->execute(['id' => $user['id_usuario']]);
             
-            // Guardar en sesión
+            // Guardar en sesion
             $_SESSION['usuario_autenticado'] = true;
             $_SESSION['usuario_id'] = $user['id_usuario'];
             $_SESSION['usuario_nombre'] = $user['nombre_completo'];
