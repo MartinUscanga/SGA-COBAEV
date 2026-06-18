@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Performance improvements (items 14-15) and UX double-submit prevention (item 16). Remove unnecessary COLLATE clauses from JOINs, consolidate the weekly chart query in index.php into a single GROUP BY query, and add JavaScript double-submit prevention to all forms.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "In admin/asistencias.php: Remove 'COLLATE utf8mb4_unicode_ci' from both JOIN conditions (the COUNT query and the SELECT query). Change `a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci` to simply `a.matricula_alumno = al.matricula`.",
     "In admin/tutores.php: Remove 'COLLATE utf8mb4_unicode_ci' from both JOIN conditions (COUNT and SELECT queries). Change `t.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci` to `t.matricula_alumno = a.matricula`.",
@@ -23,5 +23,5 @@
     "Run: find /projects/sandbox/SGA-COBAEV/admin -name '*.php' -exec php -l {} \\;"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All COLLATE clauses removed from 4 files (8 occurrences total). Weekly chart consolidated from 7 queries to 1 GROUP BY query. Double-submit prevention added to shared footer.php affecting all admin forms. All PHP lint checks pass."
 }
