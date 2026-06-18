@@ -36,5 +36,5 @@
     "php -l /projects/sandbox/SGA-COBAEV/procesar_qr.php"
   ],
   "blocked_reason": null,
-  "findings": "All acceptance criteria verified. Both files pass php -l with no syntax errors. checador2.php is a standalone file separate from checador.php with all 10 improvements applied."
+  "findings": "All acceptance criteria verified. Both files pass php -l with no syntax errors. checador2.php is a standalone file separate from checador.php with all 10 improvements applied. Post-review fixes applied: (1) Added escapeHtml() utility and applied it to all server-provided data in innerHTML templates to prevent XSS, (2) Added navigator.onLine check in keydown handler to discard HID scans when offline, (3) Unified auth check in obtener_bitacora.php to use strict !== true comparison matching procesar_qr.php."
 }
