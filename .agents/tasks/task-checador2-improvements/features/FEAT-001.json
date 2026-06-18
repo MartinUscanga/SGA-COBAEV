@@ -1,0 +1,40 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create checador2.php with all JS robustness improvements and UX changes, and harden procesar_qr.php with session verification, error hiding, and 2-minute cooldown logic between Entrada and Salida.",
+  "status": "completed",
+  "steps": [
+    "Create /projects/sandbox/SGA-COBAEV/checador2.php based on the current checador.php. Apply these changes to checador2.php:",
+    "SECURITY (checador2.php): Replace the commented-out role verification block with active verification that allows Admin, Prefecto, and Vigilante roles. Use $_SESSION['usuario_rol'] and redirect to login_admin.php if not authorized.",
+    "UX (checador2.php): Change the 'Regresar' link href from 'index.php' to 'admin/index.php'.",
+    "UX (checador2.php): Add a small link/button in the header that says 'Panel Admin' pointing to 'admin/index.php'.",
+    "ROBUSTNESS (checador2.php): Migrate the global 'keypress' event listener to 'keydown'. keypress is deprecated. In keydown, use e.key instead of String.fromCharCode(e.charCode). Accept alphanumeric characters and handle Enter properly.",
+    "ROBUSTNESS (checador2.php): In the fetch response handling for enviarMatriculaBackend(), check if response.status === 401. If so, show a message 'Sesion expirada' and redirect to login_admin.php after 2 seconds.",
+    "ROBUSTNESS (checador2.php): Add retry logic to cargarBitacoraInicial() - 3 attempts with exponential backoff (1s, 2s, 4s). If all retries fail, show a user-friendly message in the bitacora container.",
+    "ROBUSTNESS (checador2.php): Add an online/offline connection indicator. Use navigator.onLine + 'online'/'offline' events. Show a small badge in the header (green dot = online, red dot + message = offline). When offline, disable the manual input button and show a warning.",
+    "SECURITY (procesar_qr.php): Add session_start() at the top and verify $_SESSION['usuario_autenticado']. If not authenticated, return HTTP 401 JSON error and exit.",
+    "SECURITY (procesar_qr.php): Wrap the main try/catch. In the catch(PDOException) block, use error_log() to log the real error and return a generic JSON error message to the client (do not expose $e->getMessage()).",
+    "FUNCTIONALITY (procesar_qr.php): Before registering Salida, query the hora of the Entrada record for that student today. Calculate the elapsed time since Entrada. If less than 2 minutes (120 seconds), return a JSON error response with status 'error', icon 'warning', title 'Espera requerida', and a message indicating how many seconds remain before Salida can be registered. Include the remaining seconds in a 'segundos_restantes' field."
+  ],
+  "acceptance_criteria": [
+    "checador2.php exists as a separate file from checador.php",
+    "checador2.php has active role verification (Admin, Prefecto, Vigilante)",
+    "checador2.php uses keydown instead of keypress for HID reader capture",
+    "checador2.php handles 401 responses by redirecting to login",
+    "checador2.php has retry logic (3 attempts) for cargarBitacoraInicial()",
+    "checador2.php has an online/offline visual indicator",
+    "checador2.php Regresar link points to admin/index.php",
+    "checador2.php has a Panel Admin link in the header",
+    "procesar_qr.php verifies session authentication returning 401 if not logged in",
+    "procesar_qr.php does not expose PDO error messages to the client",
+    "procesar_qr.php enforces 2-minute minimum between Entrada and Salida for same student, returning seconds remaining if violated",
+    "php -l checador2.php passes with no syntax errors",
+    "php -l procesar_qr.php passes with no syntax errors"
+  ],
+  "verification": [
+    "php -l /projects/sandbox/SGA-COBAEV/checador2.php",
+    "php -l /projects/sandbox/SGA-COBAEV/procesar_qr.php"
+  ],
+  "blocked_reason": null,
+  "findings": "All acceptance criteria verified. Both files pass php -l with no syntax errors. checador2.php is a standalone file separate from checador.php with all 10 improvements applied. Post-review fixes applied: (1) Added escapeHtml() utility and applied it to all server-provided data in innerHTML templates to prevent XSS, (2) Added navigator.onLine check in keydown handler to discard HID scans when offline, (3) Unified auth check in obtener_bitacora.php to use strict !== true comparison matching procesar_qr.php."
+}
