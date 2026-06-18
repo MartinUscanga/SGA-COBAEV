@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($accion === 'test_notificacion') {
             // Enviar notificacion de prueba
             $id_dispositivo = $_POST['id_dispositivo'];
-            $stmt = $pdo->prepare("SELECT dp.token_fcm, dp.matricula_alumno, a.nombre, a.apellido_paterno FROM dispositivos_padres dp LEFT JOIN alumnos a ON dp.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci WHERE dp.id = :id");
+            $stmt = $pdo->prepare("SELECT dp.token_fcm, dp.matricula_alumno, a.nombre, a.apellido_paterno FROM dispositivos_padres dp LEFT JOIN alumnos a ON dp.matricula_alumno = a.matricula WHERE dp.id = :id");
             $stmt->execute(['id' => $id_dispositivo]);
             $dispositivo = $stmt->fetch();
 
@@ -135,7 +135,7 @@ if ($busqueda !== '') {
 }
 
 // Total registros
-$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM dispositivos_padres dp LEFT JOIN alumnos a ON dp.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci $where");
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM dispositivos_padres dp LEFT JOIN alumnos a ON dp.matricula_alumno = a.matricula $where");
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 $total_paginas = ceil($total / $por_pagina);
@@ -147,7 +147,7 @@ $offset_int = intval($offset);
 $stmt = $pdo->prepare("
     SELECT dp.*, a.nombre AS alumno_nombre, a.apellido_paterno AS alumno_ap, a.apellido_materno AS alumno_am
     FROM dispositivos_padres dp
-    LEFT JOIN alumnos a ON dp.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci
+    LEFT JOIN alumnos a ON dp.matricula_alumno = a.matricula
     $where
     ORDER BY dp.fecha_registro DESC
     LIMIT $por_pagina_int OFFSET $offset_int

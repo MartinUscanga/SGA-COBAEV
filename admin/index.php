@@ -60,7 +60,7 @@ $stmt = $pdo->prepare("
     SELECT a.matricula_alumno, a.tipo, a.hora, a.fecha,
            al.nombre, al.apellido_paterno, al.apellido_materno
     FROM asistencias a
-    INNER JOIN alumnos al ON a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci
+    INNER JOIN alumnos al ON a.matricula_alumno = al.matricula
     WHERE a.fecha = :fecha
     ORDER BY a.hora DESC
     LIMIT 10
@@ -68,16 +68,33 @@ $stmt = $pdo->prepare("
 $stmt->execute(['fecha' => $hoy]);
 $ultimos_movimientos = $stmt->fetchAll();
 
-// Datos para grafica semanal (ultimos 7 dias)
+// Datos para grafica semanal (ultimos 7 dias) - single GROUP BY query
+$fecha_inicio_semana = date('Y-m-d', strtotime('-6 days'));
+$fecha_fin_semana = date('Y-m-d');
+
+$stmt = $pdo->prepare("
+    SELECT fecha,
+        SUM(CASE WHEN tipo = 'Entrada' THEN 1 ELSE 0 END) as entradas,
+        SUM(CASE WHEN tipo = 'Salida' THEN 1 ELSE 0 END) as salidas
+    FROM asistencias
+    WHERE fecha >= :fecha_inicio AND fecha <= :fecha_fin
+    GROUP BY fecha
+    ORDER BY fecha ASC
+");
+$stmt->execute(['fecha_inicio' => $fecha_inicio_semana, 'fecha_fin' => $fecha_fin_semana]);
+$resultados_semana = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Index results by date for quick lookup
+$semana_por_fecha = [];
+foreach ($resultados_semana as $row) {
+    $semana_por_fecha[$row['fecha']] = $row;
+}
+
+// Build the 7-day array with defaults of 0 for days with no data
 $datos_semana = [];
 for ($i = 6; $i >= 0; $i--) {
     $dia = date('Y-m-d', strtotime("-$i days"));
-    $stmt = $pdo->prepare("SELECT 
-        SUM(CASE WHEN tipo = 'Entrada' THEN 1 ELSE 0 END) as entradas,
-        SUM(CASE WHEN tipo = 'Salida' THEN 1 ELSE 0 END) as salidas
-        FROM asistencias WHERE fecha = :fecha");
-    $stmt->execute(['fecha' => $dia]);
-    $row = $stmt->fetch();
+    $row = $semana_por_fecha[$dia] ?? null;
     $datos_semana[] = [
         'dia' => date('D', strtotime($dia)),
         'fecha' => $dia,

@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Performance improvements (items 14-15) and UX double-submit prevention (item 16). Remove unnecessary COLLATE clauses from JOINs, consolidate the weekly chart query in index.php into a single GROUP BY query, and add JavaScript double-submit prevention to all forms.",
+  "status": "in_progress",
+  "steps": [
+    "In admin/asistencias.php: Remove 'COLLATE utf8mb4_unicode_ci' from both JOIN conditions (the COUNT query and the SELECT query). Change `a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci` to simply `a.matricula_alumno = al.matricula`.",
+    "In admin/tutores.php: Remove 'COLLATE utf8mb4_unicode_ci' from both JOIN conditions (COUNT and SELECT queries). Change `t.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci` to `t.matricula_alumno = a.matricula`.",
+    "In admin/dispositivos.php: Remove 'COLLATE utf8mb4_unicode_ci' from the JOIN conditions in the COUNT query, the SELECT query, and the test_notificacion query. Change `dp.matricula_alumno COLLATE utf8mb4_unicode_ci = a.matricula COLLATE utf8mb4_unicode_ci` to `dp.matricula_alumno = a.matricula`.",
+    "In admin/index.php: Remove 'COLLATE utf8mb4_unicode_ci' from the ultimos_movimientos JOIN. Change `a.matricula_alumno COLLATE utf8mb4_unicode_ci = al.matricula COLLATE utf8mb4_unicode_ci` to `a.matricula_alumno = al.matricula`.",
+    "In admin/index.php: Replace the loop that runs 7 separate queries for the weekly chart with a single query: `SELECT fecha, SUM(CASE WHEN tipo = 'Entrada' THEN 1 ELSE 0 END) as entradas, SUM(CASE WHEN tipo = 'Salida' THEN 1 ELSE 0 END) as salidas FROM asistencias WHERE fecha >= :fecha_inicio AND fecha <= :fecha_fin GROUP BY fecha ORDER BY fecha ASC`. Then fill in the $datos_semana array from the results, using the same format (dia, fecha, entradas, salidas) for any day with no results defaulting to 0.",
+    "Add double-submit prevention to admin/includes/footer.php (or if footer.php is already created, add it there): Add a JavaScript snippet that finds all forms on the page and disables the submit button after first click, changing its text to 'Procesando...' and adding a brief timeout to re-enable it after 5 seconds (in case of error). This handles item 16 globally for all admin pages."
+  ],
+  "acceptance_criteria": [
+    "No COLLATE utf8mb4_unicode_ci appears in any JOIN condition in asistencias.php, tutores.php, dispositivos.php, or index.php",
+    "admin/index.php weekly chart uses a single query with GROUP BY fecha instead of 7 separate queries in a loop",
+    "Double-submit prevention JavaScript is present in the shared footer and applies to all forms",
+    "php -l passes on all modified files"
+  ],
+  "verification": [
+    "Run: grep -n 'COLLATE' /projects/sandbox/SGA-COBAEV/admin/asistencias.php /projects/sandbox/SGA-COBAEV/admin/tutores.php /projects/sandbox/SGA-COBAEV/admin/dispositivos.php /projects/sandbox/SGA-COBAEV/admin/index.php",
+    "Run: grep -c 'for.*\\$i' /projects/sandbox/SGA-COBAEV/admin/index.php",
+    "Run: find /projects/sandbox/SGA-COBAEV/admin -name '*.php' -exec php -l {} \\;"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
