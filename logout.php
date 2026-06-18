@@ -5,16 +5,7 @@
  * (los tokens son del dispositivo, no de la sesión)
  */
 
-ini_set('session.cookie_lifetime', 2592000);
-ini_set('session.gc_maxlifetime', 2592000);
-session_set_cookie_params([
-    'lifetime' => 2592000,
-    'path' => '/',
-    'secure' => isset($_SERVER['HTTPS']),
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
-session_start();
+require_once 'iniciar_sesion_padres.php';
 
 // NO borrar tokens FCM - son del dispositivo, no de la sesión
 // Si el padre vuelve a iniciar sesión, app.js re-registra el token

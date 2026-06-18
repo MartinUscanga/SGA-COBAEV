@@ -14,7 +14,7 @@
  */
 
 header('Content-Type: application/json');
-session_start();
+require_once 'iniciar_sesion_padres.php';
 
 // Verificar que el tutor este autenticado
 if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {

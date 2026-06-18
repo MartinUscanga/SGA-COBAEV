@@ -6,7 +6,7 @@
  * Endpoint POST que recibe id_aviso y actualiza leido = 1
  * Requiere sesion de tutor autenticada
  */
-session_start();
+require_once '../iniciar_sesion_padres.php';
 header('Content-Type: application/json; charset=utf-8');
 
 // Solo aceptar POST
