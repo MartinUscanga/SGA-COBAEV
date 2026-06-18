@@ -108,10 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } catch (PDOException $e) {
-        $mensaje = 'Error: ' . $e->getMessage();
+        error_log('SGA Error [dispositivos]: ' . $e->getMessage());
+        $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.';
         $tipo_mensaje = 'error';
     } catch (Exception $e) {
-        $mensaje = 'Error al enviar notificacion: ' . $e->getMessage();
+        error_log('SGA Error [dispositivos notificacion]: ' . $e->getMessage());
+        $mensaje = 'Error al enviar notificacion. Intente de nuevo mas tarde.';
         $tipo_mensaje = 'error';
     }
     } // end CSRF validation

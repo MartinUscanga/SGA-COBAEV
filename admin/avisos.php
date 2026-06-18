@@ -45,7 +45,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             if (empty($titulo) || empty($mensaje)) {
                 $mensaje_error = 'El titulo y mensaje son obligatorios.';
+            } elseif ($destinatario !== 'todos' && !preg_match('/^[A-Z]\d{7}$/i', $destinatario)) {
+                $mensaje_error = 'El destinatario debe ser "todos" o una matricula valida (letra + 7 digitos).';
             } else {
+                // Validar que la matricula existe si no es "todos"
+                if ($destinatario !== 'todos') {
+                    $stmt_check = $pdo->prepare("SELECT COUNT(*) as existe FROM alumnos WHERE matricula = :mat");
+                    $stmt_check->execute(['mat' => strtoupper($destinatario)]);
+                    if ($stmt_check->fetch()['existe'] == 0) {
+                        $mensaje_error = 'La matricula especificada no existe en el sistema.';
+                    }
+                    $destinatario = strtoupper($destinatario);
+                }
+
+                if (empty($mensaje_error)) {
                 try {
                     // Guardar aviso en BD
                     $stmt = $pdo->prepare("INSERT INTO avisos (titulo, mensaje, destinatario, creado_por, fecha_envio) VALUES (:titulo, :mensaje, :destinatario, :creado_por, NOW())");
@@ -81,8 +94,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
                     $mensaje_exito = "Aviso enviado correctamente. Notificación push enviada a {$tokens_enviados} dispositivo(s).";
                 } catch (PDOException $e) {
-                    $mensaje_error = 'Error al enviar aviso: ' . $e->getMessage();
+                    error_log('SGA Error [avisos crear]: ' . $e->getMessage());
+                    $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
                 }
+                } // end empty($mensaje_error)
             }
         } elseif ($accion === 'eliminar_aviso') {
             $id_aviso = intval($_POST['id_aviso'] ?? 0);
@@ -92,7 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $stmt->execute(['id' => $id_aviso]);
                     $mensaje_exito = 'Aviso eliminado correctamente.';
                 } catch (PDOException $e) {
-                    $mensaje_error = 'Error al eliminar: ' . $e->getMessage();
+                    error_log('SGA Error [avisos eliminar]: ' . $e->getMessage());
+                    $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
                 }
             }
         }
@@ -114,7 +130,8 @@ try {
 } catch (PDOException $e) {
     $avisos = [];
     $total_avisos = 0;
-    $mensaje_error = 'Error al cargar avisos: ' . $e->getMessage();
+    error_log('SGA Error [avisos listar]: ' . $e->getMessage());
+    $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
 }
 
 $total_paginas = ceil($total_avisos / $por_pagina);

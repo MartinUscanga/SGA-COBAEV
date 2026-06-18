@@ -30,25 +30,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO alumnos (matricula, nombre, apellido_paterno, apellido_materno) VALUES (:matricula, :nombre, :ap, :am)");
-            $stmt->execute([
-                'matricula' => strtoupper(trim($_POST['matricula'])),
-                'nombre' => trim($_POST['nombre']),
-                'ap' => trim($_POST['apellido_paterno']),
-                'am' => trim($_POST['apellido_materno'] ?? '')
-            ]);
-            $mensaje = 'Alumno registrado exitosamente.';
-            $tipo_mensaje = 'success';
+            $matricula = strtoupper(trim($_POST['matricula']));
+            $nombre = trim($_POST['nombre']);
+            $apellido_paterno = trim($_POST['apellido_paterno']);
+
+            // Validacion de entrada
+            if (!preg_match('/^[A-Z]\d{7}$/', $matricula)) {
+                $mensaje = 'La matricula debe ser una letra seguida de 7 digitos (ej: B2024001).';
+                $tipo_mensaje = 'error';
+            } elseif (empty($nombre) || mb_strlen($nombre) > 50) {
+                $mensaje = 'El nombre es obligatorio y no debe exceder 50 caracteres.';
+                $tipo_mensaje = 'error';
+            } elseif (empty($apellido_paterno) || mb_strlen($apellido_paterno) > 50) {
+                $mensaje = 'El apellido paterno es obligatorio y no debe exceder 50 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO alumnos (matricula, nombre, apellido_paterno, apellido_materno, grupo, fecha_nacimiento, email, telefono, direccion) VALUES (:matricula, :nombre, :ap, :am, :grupo, :fecha_nacimiento, :email, :telefono, :direccion)");
+                $stmt->execute([
+                    'matricula' => $matricula,
+                    'nombre' => $nombre,
+                    'ap' => $apellido_paterno,
+                    'am' => trim($_POST['apellido_materno'] ?? ''),
+                    'grupo' => trim($_POST['grupo'] ?? ''),
+                    'fecha_nacimiento' => $_POST['fecha_nacimiento'] ?? null,
+                    'email' => trim($_POST['email'] ?? ''),
+                    'telefono' => trim($_POST['telefono'] ?? ''),
+                    'direccion' => trim($_POST['direccion'] ?? '')
+                ]);
+                $mensaje = 'Alumno registrado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'editar') {
-            $stmt = $pdo->prepare("UPDATE alumnos SET nombre = :nombre, apellido_paterno = :ap, apellido_materno = :am WHERE matricula = :matricula");
-            $stmt->execute([
-                'matricula' => $_POST['matricula'],
-                'nombre' => trim($_POST['nombre']),
-                'ap' => trim($_POST['apellido_paterno']),
-                'am' => trim($_POST['apellido_materno'] ?? '')
-            ]);
-            $mensaje = 'Alumno actualizado exitosamente.';
-            $tipo_mensaje = 'success';
+            $nombre = trim($_POST['nombre']);
+            $apellido_paterno = trim($_POST['apellido_paterno']);
+
+            if (empty($nombre) || mb_strlen($nombre) > 50) {
+                $mensaje = 'El nombre es obligatorio y no debe exceder 50 caracteres.';
+                $tipo_mensaje = 'error';
+            } elseif (empty($apellido_paterno) || mb_strlen($apellido_paterno) > 50) {
+                $mensaje = 'El apellido paterno es obligatorio y no debe exceder 50 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $stmt = $pdo->prepare("UPDATE alumnos SET nombre = :nombre, apellido_paterno = :ap, apellido_materno = :am, grupo = :grupo, fecha_nacimiento = :fecha_nacimiento, email = :email, telefono = :telefono, direccion = :direccion WHERE matricula = :matricula");
+                $stmt->execute([
+                    'matricula' => $_POST['matricula'],
+                    'nombre' => $nombre,
+                    'ap' => $apellido_paterno,
+                    'am' => trim($_POST['apellido_materno'] ?? ''),
+                    'grupo' => trim($_POST['grupo'] ?? ''),
+                    'fecha_nacimiento' => $_POST['fecha_nacimiento'] ?? null,
+                    'email' => trim($_POST['email'] ?? ''),
+                    'telefono' => trim($_POST['telefono'] ?? ''),
+                    'direccion' => trim($_POST['direccion'] ?? '')
+                ]);
+                $mensaje = 'Alumno actualizado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'eliminar') {
             $stmt = $pdo->prepare("DELETE FROM alumnos WHERE matricula = :matricula");
             $stmt->execute(['matricula' => $_POST['matricula']]);
@@ -56,7 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'success';
         }
     } catch (PDOException $e) {
-        $mensaje = 'Error: ' . $e->getMessage();
+        error_log('SGA Error [alumnos]: ' . $e->getMessage());
+        $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.';
         $tipo_mensaje = 'error';
     }
     } // end CSRF validation

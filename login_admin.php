@@ -28,9 +28,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->execute(['username' => $username]);
         $user = $stmt->fetch();
 
-        // Validar credenciales
-        // Nota: En producción usa password_verify() con hashes
-        if ($user && $password === $user['password_admin']) {
+        // Validar credenciales con hash seguro
+        if ($user && password_verify($password, $user['password_admin'])) {
             
             // Actualizar último acceso
             $update_sql = "UPDATE usuarios_admin SET ultimo_acceso = NOW() WHERE id_usuario = :id";

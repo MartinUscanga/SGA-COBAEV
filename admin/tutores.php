@@ -30,25 +30,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono, creado_el) VALUES (:matricula, :nombre, :password, :telefono, NOW())");
-            $stmt->execute([
-                'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
-                'nombre' => trim($_POST['nombre_tutor']),
-                'password' => trim($_POST['password_tutor']),
-                'telefono' => trim($_POST['telefono'] ?? '')
-            ]);
-            $mensaje = 'Tutor registrado exitosamente.';
-            $tipo_mensaje = 'success';
+            $password_raw = trim($_POST['password_tutor']);
+            if (strlen($password_raw) < 6) {
+                $mensaje = 'La contrasena debe tener al menos 6 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO tutores (matricula_alumno, nombre_tutor, password_tutor, telefono_tutor, email_tutor, relacion_parentesco) VALUES (:matricula, :nombre, :password, :telefono, :email, :parentesco)");
+                $stmt->execute([
+                    'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
+                    'nombre' => trim($_POST['nombre_tutor']),
+                    'password' => password_hash($password_raw, PASSWORD_DEFAULT),
+                    'telefono' => trim($_POST['telefono_tutor'] ?? ''),
+                    'email' => trim($_POST['email_tutor'] ?? ''),
+                    'parentesco' => $_POST['relacion_parentesco'] ?? ''
+                ]);
+                $mensaje = 'Tutor registrado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'editar') {
-            $stmt = $pdo->prepare("UPDATE tutores SET nombre_tutor = :nombre, telefono = :telefono, matricula_alumno = :matricula WHERE id_tutor = :id");
-            $stmt->execute([
-                'nombre' => trim($_POST['nombre_tutor']),
-                'telefono' => trim($_POST['telefono'] ?? ''),
-                'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
-                'id' => $_POST['id_tutor']
-            ]);
-            $mensaje = 'Tutor actualizado exitosamente.';
-            $tipo_mensaje = 'success';
+            $password_raw = trim($_POST['password_tutor'] ?? '');
+            if (!empty($password_raw) && strlen($password_raw) < 6) {
+                $mensaje = 'La contrasena debe tener al menos 6 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $campos = "nombre_tutor = :nombre, telefono_tutor = :telefono, email_tutor = :email, relacion_parentesco = :parentesco, matricula_alumno = :matricula";
+                $params = [
+                    'nombre' => trim($_POST['nombre_tutor']),
+                    'telefono' => trim($_POST['telefono_tutor'] ?? ''),
+                    'email' => trim($_POST['email_tutor'] ?? ''),
+                    'parentesco' => $_POST['relacion_parentesco'] ?? '',
+                    'matricula' => strtoupper(trim($_POST['matricula_alumno'])),
+                    'id' => $_POST['id_tutor']
+                ];
+                if (!empty($password_raw)) {
+                    $campos .= ", password_tutor = :password";
+                    $params['password'] = password_hash($password_raw, PASSWORD_DEFAULT);
+                }
+                $stmt = $pdo->prepare("UPDATE tutores SET $campos WHERE id_tutor = :id");
+                $stmt->execute($params);
+                $mensaje = 'Tutor actualizado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'eliminar') {
             $stmt = $pdo->prepare("DELETE FROM tutores WHERE id_tutor = :id");
             $stmt->execute(['id' => $_POST['id_tutor']]);
@@ -56,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'success';
         }
     } catch (PDOException $e) {
-        $mensaje = 'Error: ' . $e->getMessage();
+        error_log('SGA Error [tutores]: ' . $e->getMessage());
+        $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.';
         $tipo_mensaje = 'error';
     }
     } // end CSRF validation

@@ -37,32 +37,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($accion === 'crear') {
-            $stmt = $pdo->prepare("INSERT INTO usuarios_admin (username, password_admin, nombre_completo, rol) VALUES (:username, :password, :nombre, :rol)");
-            $stmt->execute([
-                'username' => trim($_POST['username']),
-                'password' => trim($_POST['password_admin']),
-                'nombre' => trim($_POST['nombre_completo']),
-                'rol' => $_POST['rol']
-            ]);
-            $mensaje = 'Usuario creado exitosamente.';
-            $tipo_mensaje = 'success';
-        } elseif ($accion === 'editar') {
-            $campos = "username = :username, nombre_completo = :nombre, rol = :rol";
-            $params = [
-                'id' => $_POST['id_usuario'],
-                'username' => trim($_POST['username']),
-                'nombre' => trim($_POST['nombre_completo']),
-                'rol' => $_POST['rol']
-            ];
-            // Solo actualizar password si se proporciona
-            if (!empty(trim($_POST['password_admin']))) {
-                $campos .= ", password_admin = :password";
-                $params['password'] = trim($_POST['password_admin']);
+            $username = trim($_POST['username']);
+            $password_raw = trim($_POST['password_admin']);
+            $nombre = trim($_POST['nombre_completo']);
+            $rol = $_POST['rol'];
+
+            // Validacion de entrada
+            if (!preg_match('/^[a-zA-Z0-9]{3,50}$/', $username)) {
+                $mensaje = 'El username debe ser alfanumerico y tener entre 3 y 50 caracteres.';
+                $tipo_mensaje = 'error';
+            } elseif (strlen($password_raw) < 6) {
+                $mensaje = 'La contrasena debe tener al menos 6 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO usuarios_admin (username, password_admin, nombre_completo, rol) VALUES (:username, :password, :nombre, :rol)");
+                $stmt->execute([
+                    'username' => $username,
+                    'password' => password_hash($password_raw, PASSWORD_DEFAULT),
+                    'nombre' => $nombre,
+                    'rol' => $rol
+                ]);
+                $mensaje = 'Usuario creado exitosamente.';
+                $tipo_mensaje = 'success';
             }
-            $stmt = $pdo->prepare("UPDATE usuarios_admin SET $campos WHERE id_usuario = :id");
-            $stmt->execute($params);
-            $mensaje = 'Usuario actualizado exitosamente.';
-            $tipo_mensaje = 'success';
+        } elseif ($accion === 'editar') {
+            $username = trim($_POST['username']);
+            $password_raw = trim($_POST['password_admin']);
+            $nombre = trim($_POST['nombre_completo']);
+            $rol = $_POST['rol'];
+
+            // Validacion de entrada
+            if (!preg_match('/^[a-zA-Z0-9]{3,50}$/', $username)) {
+                $mensaje = 'El username debe ser alfanumerico y tener entre 3 y 50 caracteres.';
+                $tipo_mensaje = 'error';
+            } elseif (!empty($password_raw) && strlen($password_raw) < 6) {
+                $mensaje = 'La contrasena debe tener al menos 6 caracteres.';
+                $tipo_mensaje = 'error';
+            } else {
+                $campos = "username = :username, nombre_completo = :nombre, rol = :rol";
+                $params = [
+                    'id' => $_POST['id_usuario'],
+                    'username' => $username,
+                    'nombre' => $nombre,
+                    'rol' => $rol
+                ];
+                // Solo actualizar password si se proporciona
+                if (!empty($password_raw)) {
+                    $campos .= ", password_admin = :password";
+                    $params['password'] = password_hash($password_raw, PASSWORD_DEFAULT);
+                }
+                $stmt = $pdo->prepare("UPDATE usuarios_admin SET $campos WHERE id_usuario = :id");
+                $stmt->execute($params);
+                $mensaje = 'Usuario actualizado exitosamente.';
+                $tipo_mensaje = 'success';
+            }
         } elseif ($accion === 'eliminar') {
             $id_eliminar = (int)$_POST['id_usuario'];
             // Prevenir auto-eliminacion
@@ -77,7 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } catch (PDOException $e) {
-        $mensaje = 'Error: ' . $e->getMessage();
+        error_log('SGA Error [usuarios]: ' . $e->getMessage());
+        $mensaje = 'Error interno del servidor. Intente de nuevo mas tarde.';
         $tipo_mensaje = 'error';
     }
     } // end CSRF validation
