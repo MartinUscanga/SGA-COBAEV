@@ -11,7 +11,8 @@ function obtenerBitacora($pdo) {
     $sql = "SELECT a.nombre, a.apellido_paterno, a.apellido_materno, a.grupo, asis.matricula_alumno, asis.tipo, asis.hora 
             FROM asistencias asis
             JOIN alumnos a ON asis.matricula_alumno = a.matricula
-            ORDER BY asis.id_asistencia DESC LIMIT 5";
+            WHERE asis.fecha = CURDATE()
+            ORDER BY asis.id_asistencia DESC LIMIT 20";
     return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
