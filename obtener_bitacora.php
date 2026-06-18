@@ -8,8 +8,8 @@
 
 session_start();
 
-// Verificar autenticacion
-if (!isset($_SESSION['usuario_autenticado'])) {
+// Verificar autenticacion (strict check - login_admin.php sets this to boolean true)
+if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
     http_response_code(401);
     echo json_encode(['error' => 'No autorizado']);
     exit;
