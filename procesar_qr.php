@@ -1,7 +1,15 @@
 <?php
 // procesar_qr.php
+session_start();
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
+
+// Verificar autenticacion
+if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'icon' => 'error', 'title' => 'No autorizado', 'message' => 'Sesion no valida. Inicia sesion nuevamente.']);
+    exit;
+}
 
 require_once 'conexion.php';
 require 'enviar_notificacion.php';
@@ -75,6 +83,32 @@ try {
     $stmt_salida->execute(['matricula' => $matricula, 'fecha' => $fecha_hoy]);
     
     if (!$stmt_salida->fetch()) {
+        // Verificar tiempo minimo de 2 minutos entre Entrada y Salida
+        $stmt_hora_entrada = $pdo->prepare("SELECT hora FROM asistencias WHERE matricula_alumno = :matricula AND fecha = :fecha AND tipo = 'Entrada' ORDER BY id_asistencia DESC LIMIT 1");
+        $stmt_hora_entrada->execute(['matricula' => $matricula, 'fecha' => $fecha_hoy]);
+        $registro_entrada = $stmt_hora_entrada->fetch(PDO::FETCH_ASSOC);
+
+        if ($registro_entrada) {
+            $tiempo_entrada = strtotime($registro_entrada['hora']);
+            $tiempo_actual = strtotime($hora_actual);
+            $segundos_transcurridos = $tiempo_actual - $tiempo_entrada;
+            $minimo_segundos = 120;
+
+            if ($segundos_transcurridos < $minimo_segundos) {
+                $segundos_restantes = $minimo_segundos - $segundos_transcurridos;
+                echo json_encode([
+                    'status' => 'error',
+                    'icon' => 'warning',
+                    'title' => 'Espera requerida',
+                    'message' => "Debes esperar $segundos_restantes segundos mas para registrar la salida.",
+                    'grupo' => $grupo_alumno,
+                    'segundos_restantes' => $segundos_restantes,
+                    'bitacora' => obtenerBitacora($pdo)
+                ]);
+                exit;
+            }
+        }
+
         $pdo->prepare("INSERT INTO asistencias (matricula_alumno, fecha, hora, tipo, sincronizado) VALUES (:matricula, :fecha, :hora, 'Salida', 0)")
             ->execute(['matricula' => $matricula, 'fecha' => $fecha_hoy, 'hora' => $hora_actual]);
 
@@ -104,6 +138,8 @@ try {
     ]);
 
 } catch (PDOException $e) {
-    echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]);
+    error_log("procesar_qr.php PDOException: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'icon' => 'error', 'title' => 'Error del servidor', 'message' => 'Ocurrio un error al procesar la solicitud. Intenta de nuevo.']);
 }
 ?>
