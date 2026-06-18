@@ -268,6 +268,20 @@ date_default_timezone_set('America/Mexico_City');
     <!-- SCRIPTS DE CONTROL -->
     <script>
     // ============================================
+    // UTILIDADES DE SEGURIDAD
+    // ============================================
+    /**
+     * Escapa caracteres HTML para prevenir XSS al insertar datos
+     * del servidor en innerHTML.
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(String(str)));
+        return div.innerHTML;
+    }
+
+    // ============================================
     // CONFIGURACIÓN DEL SISTEMA
     // ============================================
     const CONFIG = {
@@ -450,7 +464,7 @@ date_default_timezone_set('America/Mexico_City');
         let bgClass = esExito ? (esEntrada ? 'bg-emerald-50' : 'bg-rose-50') : 'bg-amber-50';
         let textClass = esExito ? (esEntrada ? 'text-emerald-600' : 'text-rose-600') : 'text-amber-600';
         let titleText = esExito ? (esEntrada ? 'ENTRADA REGISTRADA' : 'SALIDA REGISTRADA') : 'ATENCIÓN';
-        let grupoText = data.grupo ? `• Grupo ${data.grupo}` : '';
+        let grupoText = data.grupo ? `&bull; Grupo ${escapeHtml(data.grupo)}` : '';
         
         contenedor.style.opacity = '0';
         contenedor.style.transform = 'scale(0.95)';
@@ -467,11 +481,11 @@ date_default_timezone_set('America/Mexico_City');
                 </div>
                 <div class="text-left flex-grow">
                     <span class="text-[10px] font-bold ${textClass} tracking-wider uppercase block">${titleText}</span>
-                    <h3 class="text-base font-bold text-zinc-900 leading-tight mt-1">${data.message || 'Procesado'}</h3>
-                    <p class="text-xs text-zinc-500 font-mono mt-0.5">${matricula} ${grupoText}</p>
+                    <h3 class="text-base font-bold text-zinc-900 leading-tight mt-1">${escapeHtml(data.message) || 'Procesado'}</h3>
+                    <p class="text-xs text-zinc-500 font-mono mt-0.5">${escapeHtml(matricula)} ${grupoText}</p>
                 </div>
                 <div class="text-right flex-shrink-0">
-                    <p class="text-lg font-mono font-bold text-vino">${horaActual}</p>
+                    <p class="text-lg font-mono font-bold text-vino">${escapeHtml(horaActual)}</p>
                 </div>
             `;
             contenedor.style.opacity = '1';
@@ -518,7 +532,7 @@ date_default_timezone_set('America/Mexico_City');
                 <svg class="w-8 h-8 text-rose-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <p class="text-sm text-rose-600 font-medium">${mensaje}</p>
+                <p class="text-sm text-rose-600 font-medium">${escapeHtml(mensaje)}</p>
             </div>
         `;
     }
@@ -546,23 +560,32 @@ date_default_timezone_set('America/Mexico_City');
     }
 
     function crearTarjetaRegistro(r) {
+        const nombre = escapeHtml(r.nombre);
+        const apellidoPaterno = escapeHtml(r.apellido_paterno);
+        const apellidoMaterno = escapeHtml(r.apellido_materno || '');
+        const matriculaAlumno = escapeHtml(r.matricula_alumno);
+        const grupo = r.grupo ? '&bull; Grupo ' + escapeHtml(r.grupo) : '';
+        const tipo = escapeHtml(r.tipo);
+        const hora = escapeHtml(r.hora);
+        const inicial = nombre.charAt(0);
+
         return `
             <div class="flex items-center justify-between border border-zinc-200 bg-white p-4 rounded-xl shadow-sm">
                 <div class="flex items-center space-x-4">
                     <div class="w-1.5 ${r.tipo === 'Entrada' ? 'bg-emerald-500' : 'bg-rose-500'} h-12 rounded-full"></div>
                     <div class="w-12 h-12 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-lg font-bold font-serif-elegant">
-                        ${r.nombre.charAt(0)}
+                        ${inicial}
                     </div>
                     <div>
-                        <h4 class="text-sm font-bold text-zinc-900 leading-tight">${r.nombre} ${r.apellido_paterno} ${r.apellido_materno || ''}</h4>
-                        <p class="text-xs font-mono text-zinc-500 mt-0.5">${r.matricula_alumno} ${r.grupo ? '• Grupo ' + r.grupo : ''}</p>
+                        <h4 class="text-sm font-bold text-zinc-900 leading-tight">${nombre} ${apellidoPaterno} ${apellidoMaterno}</h4>
+                        <p class="text-xs font-mono text-zinc-500 mt-0.5">${matriculaAlumno} ${grupo}</p>
                     </div>
                 </div>
                 <div class="text-right">
                     <span class="text-[10px] font-bold px-3 py-1 rounded-full ${r.tipo === 'Entrada' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} uppercase block tracking-wider">
-                        ${r.tipo}
+                        ${tipo}
                     </span>
-                    <span class="text-sm font-mono font-bold text-zinc-700 mt-1 block">${r.hora}</span>
+                    <span class="text-sm font-mono font-bold text-zinc-700 mt-1 block">${hora}</span>
                 </div>
             </div>
         `;
@@ -635,6 +658,17 @@ date_default_timezone_set('America/Mexico_City');
         
         // Ignorar teclas modificadoras solas
         if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape'].includes(e.key)) return;
+        
+        // Si estamos offline, no procesar escaneos HID
+        if (!navigator.onLine) {
+            clearTimeout(timer);
+            buffer = "";
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                mostrarError('Sin conexion a internet. Escaneo descartado.');
+            }
+            return;
+        }
         
         clearTimeout(timer);
         
