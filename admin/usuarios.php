@@ -43,7 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $rol = $_POST['rol'];
 
             // Validacion de entrada
-            if (!preg_match('/^[a-zA-Z0-9]{3,50}$/', $username)) {
+            if (!in_array($rol, ['Admin', 'Prefecto', 'Vigilante'], true)) {
+                $mensaje = 'Rol invalido.';
+                $tipo_mensaje = 'error';
+            } elseif (!preg_match('/^[a-zA-Z0-9]{3,50}$/', $username)) {
                 $mensaje = 'El username debe ser alfanumerico y tener entre 3 y 50 caracteres.';
                 $tipo_mensaje = 'error';
             } elseif (strlen($password_raw) < 6) {
@@ -67,7 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $rol = $_POST['rol'];
 
             // Validacion de entrada
-            if (!preg_match('/^[a-zA-Z0-9]{3,50}$/', $username)) {
+            if (!in_array($rol, ['Admin', 'Prefecto', 'Vigilante'], true)) {
+                $mensaje = 'Rol invalido.';
+                $tipo_mensaje = 'error';
+            } elseif (!preg_match('/^[a-zA-Z0-9]{3,50}$/', $username)) {
                 $mensaje = 'El username debe ser alfanumerico y tener entre 3 y 50 caracteres.';
                 $tipo_mensaje = 'error';
             } elseif (!empty($password_raw) && strlen($password_raw) < 6) {

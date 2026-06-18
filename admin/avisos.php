@@ -165,7 +165,7 @@ require_once 'includes/header.php';
                     <p class="text-xs text-zinc-400 mt-0.5">Los avisos se mostraran en el portal de padres</p>
                 </div>
                 <form method="POST" class="p-6 space-y-4">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="accion" value="crear_aviso">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -254,7 +254,7 @@ require_once 'includes/header.php';
                                         <td class="px-6 py-3 text-xs text-zinc-500"><?= date('d/m/Y H:i', strtotime($aviso['fecha_envio'])) ?></td>
                                         <td class="px-6 py-3 text-center">
                                             <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar este aviso?')">
-                                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                                 <input type="hidden" name="accion" value="eliminar_aviso">
                                                 <input type="hidden" name="id_aviso" value="<?= $aviso['id_aviso'] ?>">
                                                 <button type="submit" class="text-rose-500 hover:text-rose-700 transition-colors" title="Eliminar">
