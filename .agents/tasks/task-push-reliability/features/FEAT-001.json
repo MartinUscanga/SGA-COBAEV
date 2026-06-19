@@ -24,5 +24,5 @@
     "Verify app.js contains the visibilitychange listener with 30-minute threshold"
   ],
   "blocked_reason": null,
-  "findings": "All three improvements implemented successfully. PHP syntax checks pass for all modified files. The node --check for app.js fails due to sandbox environment (missing proxy-bootstrap.js preload), not due to code issues. The JS code uses standard DOM APIs and is syntactically correct."
+  "findings": "All three improvements implemented successfully. PHP syntax checks pass for all modified files. The node --check for app.js fails due to sandbox environment (missing proxy-bootstrap.js preload), not due to code issues. The JS code uses standard DOM APIs and is syntactically correct. Post-review fix: removed dead mostrarAyudaNotificaciones() from padres.php and added heartbeatEnProgreso boolean mutex to prevent concurrent solicitarPermisoYRegistrar() calls in app.js heartbeat listener."
 }
