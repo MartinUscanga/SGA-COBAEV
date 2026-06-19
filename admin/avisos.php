@@ -41,8 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             if (empty($titulo) || empty($mensaje)) {
                 $mensaje_error = 'El titulo y mensaje son obligatorios.';
-            } elseif ($destinatario !== 'todos' && !preg_match('/^[A-Z]\d{7}$/i', $destinatario)) {
-                $mensaje_error = 'El destinatario debe ser "todos" o una matricula valida (letra + 7 digitos).';
+            } elseif ($destinatario !== 'todos' && !preg_match('/^\d{9}$/', $destinatario)) {
+                $mensaje_error = 'El destinatario debe ser "todos" o una matricula valida (9 digitos numericos).';
             } else {
                 // Validar que la matricula existe si no es "todos"
                 if ($destinatario !== 'todos') {
