@@ -1,5 +1,5 @@
-// [sw.js] - Versión 1.2
-const SW_VERSION = 'v1.2';
+// [sw.js] - Versión 1.3
+const SW_VERSION = 'v1.3';
 console.log('[SW] Versión:', SW_VERSION);
 
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
