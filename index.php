@@ -11,6 +11,9 @@ session_set_cookie_params([
     'samesite' => 'Lax'
 ]);
 session_start();
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 if (isset($_SESSION['tutor_autenticado']) && $_SESSION['tutor_autenticado'] === true) {
     // Si ya está logueado, redirigir al portal
     header("Location: padres.php");
@@ -24,6 +27,9 @@ if (isset($_SESSION['tutor_autenticado']) && $_SESSION['tutor_autenticado'] === 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Sistema de Gestión de Asistencias - Portal de Padres COBAEV">
     <meta name="theme-color" content="#5c1931">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Bienvenido - SGA COBAEV</title>
     
     <!-- PWA Manifest -->
