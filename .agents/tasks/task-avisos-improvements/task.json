@@ -1,0 +1,7 @@
+{
+  "task_id": "task-avisos-improvements",
+  "task_description": "Implement improvements to the avisos system: group-based targeting, per-user read tracking via avisos_leidos table, dedicated avisos page for parents, push notification enhancements, and notification click navigation.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

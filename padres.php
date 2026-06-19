@@ -262,6 +262,9 @@ foreach ($asistencias as $reg) {
                     <p class="text-xs text-zinc-400">Cargando avisos...</p>
                 </div>
             </div>
+            <div class="px-4 py-3 border-t border-zinc-100 text-center">
+                <a href="avisos_padres.php" class="text-xs font-semibold text-vino hover:underline">Ver todos los avisos</a>
+            </div>
         </div>
 
         <!-- Menu desplegable -->
@@ -300,7 +303,7 @@ foreach ($asistencias as $reg) {
                         <p class="text-[10px] text-zinc-400">Agregar a pantalla inicio</p>
                     </div>
                 </button>
-                <button onclick="mostrarAyudaNotificaciones()" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
+                <a href="ayuda_notificaciones.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
                     <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -310,7 +313,7 @@ foreach ($asistencias as $reg) {
                         <p class="text-xs font-semibold text-zinc-700">Configurar notificaciones</p>
                         <p class="text-[10px] text-zinc-400">Asegurar que lleguen alertas</p>
                     </div>
-                </button>
+                </a>
                 <div class="border-t border-zinc-100 my-1"></div>
                 <a href="logout.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-rose-50 active:bg-rose-100 transition-colors text-left">
                     <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -686,51 +689,6 @@ foreach ($asistencias as $reg) {
             }
         }
 
-        // Ayuda para configurar notificaciones
-        function mostrarAyudaNotificaciones() {
-            const menu = document.getElementById('menu-opciones');
-            menu.classList.add('hidden');
-
-            const ua = navigator.userAgent.toLowerCase();
-            let instrucciones = '';
-
-            if (/android/.test(ua)) {
-                instrucciones = '📱 ANDROID:\n\n' +
-                    '1. Abrir Configuración del teléfono\n' +
-                    '2. Ir a Aplicaciones → Chrome (o su navegador)\n' +
-                    '3. Tocar "Notificaciones" → Activar todas\n' +
-                    '4. Ir a Batería → Seleccionar "Sin restricciones"\n' +
-                    '5. Desactivar "Ahorro de batería" para el navegador\n\n' +
-                    '💡 Recomendado: Instalar la app desde el menú para recibir alertas con el navegador cerrado.';
-            } else if (/iphone|ipad|ipod/.test(ua)) {
-                instrucciones = '🍎 iPHONE / iPAD:\n\n' +
-                    '1. Abrir Configuración → Notificaciones\n' +
-                    '2. Buscar "Safari" o la app instalada → Activar\n' +
-                    '3. Activar: Sonidos, Badges, Banners\n' +
-                    '4. Ir a Configuración → General → Actualización en segundo plano → Activar\n\n' +
-                    '⚠️ IMPORTANTE: En iPhone DEBE instalar la app:\n' +
-                    'Safari → Compartir (⬆) → "Agregar a pantalla de inicio"\n' +
-                    'Solo así recibirá notificaciones push.';
-            } else if (/windows/.test(ua)) {
-                instrucciones = '💻 WINDOWS (PC):\n\n' +
-                    '1. En Chrome/Edge: click en el candado 🔒 (barra de direcciones)\n' +
-                    '2. Permisos del sitio → Notificaciones → "Permitir"\n' +
-                    '3. Windows: Configuración → Sistema → Notificaciones\n' +
-                    '4. Verificar que Chrome/Edge esté en "Activado"\n' +
-                    '5. Desactivar "No molestar" / "Asistente de concentración"\n\n' +
-                    '💡 El navegador debe estar abierto (puede estar minimizado) para recibir alertas.';
-            } else {
-                instrucciones = '📱 CONFIGURAR NOTIFICACIONES:\n\n' +
-                    '1. Asegúrese de haber permitido notificaciones del sitio\n' +
-                    '2. Desactive el modo "Ahorro de batería"\n' +
-                    '3. Active las notificaciones para su navegador en la configuración del dispositivo\n' +
-                    '4. Instale la app (desde el menú de opciones) para mejor funcionamiento\n\n' +
-                    '⚠️ Si no recibe notificaciones, use "Actualizar sistema" en este menú.';
-            }
-
-            alert(instrucciones);
-        }
-
         // ========== SISTEMA DE AVISOS ==========
 
         // Toggle panel de avisos
@@ -790,18 +748,14 @@ foreach ($asistencias as $reg) {
             avisos.forEach(aviso => {
                 const fecha = new Date(aviso.fecha_envio);
                 const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const mensajeCorto = aviso.mensaje.length > 80 ? aviso.mensaje.substring(0, 80) + '...' : aviso.mensaje;
 
                 html += '<div class="px-4 py-3 border-b border-zinc-50 hover:bg-zinc-50 transition-colors" id="aviso-' + aviso.id_aviso + '">';
                 html += '  <div class="flex items-start justify-between">';
                 html += '    <div class="flex-1 min-w-0 mr-2">';
                 html += '      <p class="text-xs font-bold text-zinc-700 truncate">' + escapeHtml(aviso.titulo) + '</p>';
-                html += '      <p class="text-[11px] text-zinc-500 mt-1 leading-relaxed">' + escapeHtml(mensajeCorto) + '</p>';
-                html += '      <p class="text-[9px] text-zinc-400 mt-1.5 uppercase tracking-wider">' + fechaStr + '</p>';
+                html += '      <p class="text-[9px] text-zinc-400 mt-1 uppercase tracking-wider">' + fechaStr + '</p>';
                 html += '    </div>';
-                html += '    <button onclick="marcarLeido(' + aviso.id_aviso + ')" class="flex-shrink-0 mt-0.5 w-7 h-7 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center justify-center transition-colors" title="Marcar como leido">';
-                html += '      <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
-                html += '    </button>';
+                html += '    <div class="flex-shrink-0 mt-0.5 w-2 h-2 bg-red-400 rounded-full"></div>';
                 html += '  </div>';
                 html += '</div>';
             });

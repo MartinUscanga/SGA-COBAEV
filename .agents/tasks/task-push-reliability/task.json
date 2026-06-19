@@ -1,0 +1,7 @@
+{
+  "task_id": "task-push-reliability",
+  "task_description": "Implement push notification reliability improvements: A) ayuda_notificaciones.php page with battery optimization guides, B) FCM TTL:0 and analytics_label in enviar_notificacion.php, C) heartbeat re-register logic in app.js",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
