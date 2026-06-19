@@ -157,3 +157,22 @@ onMessage(messaging, (payload) => {
 
 // Ejecutar
 solicitarPermisoYRegistrar();
+
+// Heartbeat: re-registrar token FCM cuando la app vuelve a estar visible tras inactividad
+let heartbeatEnProgreso = false;
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        const ahora = Date.now();
+        const ultimoHeartbeat = parseInt(localStorage.getItem('fcm_last_heartbeat') || '0', 10);
+        const treintaMinutos = 30 * 60 * 1000;
+
+        if (ahora - ultimoHeartbeat > treintaMinutos && !heartbeatEnProgreso) {
+            console.log('Heartbeat: Re-registrando token FCM tras inactividad...');
+            localStorage.setItem('fcm_last_heartbeat', ahora.toString());
+            heartbeatEnProgreso = true;
+            solicitarPermisoYRegistrar().finally(() => {
+                heartbeatEnProgreso = false;
+            });
+        }
+    }
+});
