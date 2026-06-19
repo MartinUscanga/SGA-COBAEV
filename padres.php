@@ -689,51 +689,6 @@ foreach ($asistencias as $reg) {
             }
         }
 
-        // Ayuda para configurar notificaciones
-        function mostrarAyudaNotificaciones() {
-            const menu = document.getElementById('menu-opciones');
-            menu.classList.add('hidden');
-
-            const ua = navigator.userAgent.toLowerCase();
-            let instrucciones = '';
-
-            if (/android/.test(ua)) {
-                instrucciones = '📱 ANDROID:\n\n' +
-                    '1. Abrir Configuración del teléfono\n' +
-                    '2. Ir a Aplicaciones → Chrome (o su navegador)\n' +
-                    '3. Tocar "Notificaciones" → Activar todas\n' +
-                    '4. Ir a Batería → Seleccionar "Sin restricciones"\n' +
-                    '5. Desactivar "Ahorro de batería" para el navegador\n\n' +
-                    '💡 Recomendado: Instalar la app desde el menú para recibir alertas con el navegador cerrado.';
-            } else if (/iphone|ipad|ipod/.test(ua)) {
-                instrucciones = '🍎 iPHONE / iPAD:\n\n' +
-                    '1. Abrir Configuración → Notificaciones\n' +
-                    '2. Buscar "Safari" o la app instalada → Activar\n' +
-                    '3. Activar: Sonidos, Badges, Banners\n' +
-                    '4. Ir a Configuración → General → Actualización en segundo plano → Activar\n\n' +
-                    '⚠️ IMPORTANTE: En iPhone DEBE instalar la app:\n' +
-                    'Safari → Compartir (⬆) → "Agregar a pantalla de inicio"\n' +
-                    'Solo así recibirá notificaciones push.';
-            } else if (/windows/.test(ua)) {
-                instrucciones = '💻 WINDOWS (PC):\n\n' +
-                    '1. En Chrome/Edge: click en el candado 🔒 (barra de direcciones)\n' +
-                    '2. Permisos del sitio → Notificaciones → "Permitir"\n' +
-                    '3. Windows: Configuración → Sistema → Notificaciones\n' +
-                    '4. Verificar que Chrome/Edge esté en "Activado"\n' +
-                    '5. Desactivar "No molestar" / "Asistente de concentración"\n\n' +
-                    '💡 El navegador debe estar abierto (puede estar minimizado) para recibir alertas.';
-            } else {
-                instrucciones = '📱 CONFIGURAR NOTIFICACIONES:\n\n' +
-                    '1. Asegúrese de haber permitido notificaciones del sitio\n' +
-                    '2. Desactive el modo "Ahorro de batería"\n' +
-                    '3. Active las notificaciones para su navegador en la configuración del dispositivo\n' +
-                    '4. Instale la app (desde el menú de opciones) para mejor funcionamiento\n\n' +
-                    '⚠️ Si no recibe notificaciones, use "Actualizar sistema" en este menú.';
-            }
-
-            alert(instrucciones);
-        }
-
         // ========== SISTEMA DE AVISOS ==========
 
         // Toggle panel de avisos
