@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Implement all three push reliability improvements: A) Create ayuda_notificaciones.php page with battery optimization guides per brand and test notification button, update padres.php menu link. B) Add TTL:0 and fcm_options to enviar_notificacion.php. C) Add heartbeat/re-register logic to app.js on visibilitychange.",
+  "status": "in_progress",
+  "steps": [
+    "Create ayuda_notificaciones.php in project root. Must use the same session auth pattern as perfil_tutor.php (ob_start, date_default_timezone_set, session config with 2592000 lifetime, session_start, check $_SESSION['tutor_autenticado']). Include same <head> structure as padres.php (Tailwind CDN, Google Fonts for Playfair Display + Plus Jakarta Sans, same <style> block with .font-serif-elegant, .font-sans-clean, .bg-crema, .text-vino, .bg-vino, .text-dorado). Header: bg-vino bar with back arrow linking to padres.php and title. Body: mobile-first guide organized by brand (Samsung, Xiaomi/Redmi, Huawei/Honor, OPPO/Realme, General/Android Stock) with step-by-step instructions for disabling battery optimization for Chrome. Add a 'Verificar que las notificaciones funcionan' section with a button that triggers navigator.serviceWorker.ready.then(reg => reg.showNotification('Notificacion de prueba', {body: 'Si ves esto, las notificaciones funcionan correctamente', icon: '/logo.png'})). End with a note: 'Si despues de seguir estos pasos sigues sin recibir notificaciones, contacta al administrador'.",
+    "In padres.php, find the button with onclick='mostrarAyudaNotificaciones()' in the menu dropdown and replace it with an <a href='ayuda_notificaciones.php'> element keeping the exact same classes and inner HTML structure (the amber icon, 'Configurar notificaciones' text, and subtitle). The button currently has: class='w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left'.",
+    "In enviar_notificacion.php, inside the $mensaje array under 'message' -> 'webpush' -> 'headers', add 'TTL' => '0' alongside the existing 'Urgency' => 'high'. Also add at the 'message' level (same level as 'token', 'data', 'android', 'webpush'): 'fcm_options' => ['analytics_label' => 'sga_push']. Do NOT change function signature or any other logic.",
+    "In app.js, AFTER the final line '// Ejecutar\\nsolicitarPermisoYRegistrar();', add a heartbeat mechanism: a visibilitychange event listener that checks localStorage key 'fcm_last_heartbeat'. If document becomes visible and more than 30 minutes (1800000 ms) have passed since last heartbeat (or no heartbeat exists), call solicitarPermisoYRegistrar() and update the localStorage timestamp. Do NOT modify any existing code above the new addition."
+  ],
+  "acceptance_criteria": [
+    "ayuda_notificaciones.php exists, has proper session auth, mobile-first design with brand-specific battery optimization guides, and a test notification button using showNotification",
+    "padres.php menu dropdown 'Configurar notificaciones' item is now an <a> link to ayuda_notificaciones.php instead of a button with onclick",
+    "enviar_notificacion.php payload includes TTL:0 in webpush.headers and fcm_options.analytics_label at message level, without changing function signature",
+    "app.js has heartbeat logic at the end that re-calls solicitarPermisoYRegistrar on visibilitychange after 30min idle, using localStorage 'fcm_last_heartbeat'",
+    "All PHP files pass php -l syntax check",
+    "No existing functionality is broken"
+  ],
+  "verification": [
+    "Run php -l ayuda_notificaciones.php to check syntax",
+    "Run php -l enviar_notificacion.php to check syntax",
+    "Run php -l padres.php to check syntax",
+    "Verify app.js contains the visibilitychange listener with 30-minute threshold"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

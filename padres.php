@@ -303,7 +303,7 @@ foreach ($asistencias as $reg) {
                         <p class="text-[10px] text-zinc-400">Agregar a pantalla inicio</p>
                     </div>
                 </button>
-                <button onclick="mostrarAyudaNotificaciones()" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
+                <a href="ayuda_notificaciones.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left">
                     <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -313,7 +313,7 @@ foreach ($asistencias as $reg) {
                         <p class="text-xs font-semibold text-zinc-700">Configurar notificaciones</p>
                         <p class="text-[10px] text-zinc-400">Asegurar que lleguen alertas</p>
                     </div>
-                </button>
+                </a>
                 <div class="border-t border-zinc-100 my-1"></div>
                 <a href="logout.php" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-rose-50 active:bg-rose-100 transition-colors text-left">
                     <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center flex-shrink-0">

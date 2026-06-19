@@ -1,0 +1,23 @@
+{
+  "project_type": "PHP + MySQL + Tailwind CSS PWA with Firebase Cloud Messaging",
+  "language": "PHP, JavaScript",
+  "build_system": "None (vanilla PHP served directly)",
+  "test_framework": "None (no automated tests)",
+  "build_command": "N/A - PHP files served directly",
+  "test_command": "N/A - manual verification",
+  "verification_instructions": "Verify PHP files have no syntax errors via php -l. Verify JS files have no syntax errors.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No build step needed. PHP files are served directly by web server.",
+  "environment_constraints": "No PHP server running, no MySQL. Validation limited to syntax checking.",
+  "contribution_requirements": "Keep same coding style. Use Tailwind CSS from CDN. Use same session pattern as other parent portal pages.",
+  "key_patterns": "Session auth pattern: check session_status, ini_set cookie lifetime, session_start, then check $_SESSION['tutor_autenticado'] === true. Styles: bg-crema (#f7f3eb), text-vino (#5c1931), bg-vino (#5c1931), text-dorado (#a48253). Fonts: Playfair Display (serif-elegant), Plus Jakarta Sans (sans-clean). All parent pages use Tailwind CDN and same head/meta structure as padres.php.",
+  "relevant_files": [
+    "enviar_notificacion.php",
+    "app.js",
+    "padres.php",
+    "sw.js",
+    "perfil_tutor.php",
+    "iniciar_sesion_padres.php"
+  ],
+  "directory_structure": "Root: PHP files, app.js, sw.js. /admin: admin panel. /api: JSON endpoints. /config: service account. /sql: migrations."
+}
