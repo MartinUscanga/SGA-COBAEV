@@ -73,8 +73,12 @@ function enviarAlertaFirebase($token_padre, $mensaje_texto) {
             ],
             'webpush' => [
                 'headers' => [
-                    'Urgency' => 'high'
+                    'Urgency' => 'high',
+                    'TTL' => '0'
                 ]
+            ],
+            'fcm_options' => [
+                'analytics_label' => 'sga_push'
             ]
         ]
     ];
