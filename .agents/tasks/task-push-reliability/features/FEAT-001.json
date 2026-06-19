@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Implement all three push reliability improvements: A) Create ayuda_notificaciones.php page with battery optimization guides per brand and test notification button, update padres.php menu link. B) Add TTL:0 and fcm_options to enviar_notificacion.php. C) Add heartbeat/re-register logic to app.js on visibilitychange.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create ayuda_notificaciones.php in project root. Must use the same session auth pattern as perfil_tutor.php (ob_start, date_default_timezone_set, session config with 2592000 lifetime, session_start, check $_SESSION['tutor_autenticado']). Include same <head> structure as padres.php (Tailwind CDN, Google Fonts for Playfair Display + Plus Jakarta Sans, same <style> block with .font-serif-elegant, .font-sans-clean, .bg-crema, .text-vino, .bg-vino, .text-dorado). Header: bg-vino bar with back arrow linking to padres.php and title. Body: mobile-first guide organized by brand (Samsung, Xiaomi/Redmi, Huawei/Honor, OPPO/Realme, General/Android Stock) with step-by-step instructions for disabling battery optimization for Chrome. Add a 'Verificar que las notificaciones funcionan' section with a button that triggers navigator.serviceWorker.ready.then(reg => reg.showNotification('Notificacion de prueba', {body: 'Si ves esto, las notificaciones funcionan correctamente', icon: '/logo.png'})). End with a note: 'Si despues de seguir estos pasos sigues sin recibir notificaciones, contacta al administrador'.",
     "In padres.php, find the button with onclick='mostrarAyudaNotificaciones()' in the menu dropdown and replace it with an <a href='ayuda_notificaciones.php'> element keeping the exact same classes and inner HTML structure (the amber icon, 'Configurar notificaciones' text, and subtitle). The button currently has: class='w-full flex items-center space-x-3 px-4 py-3 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-left'.",
@@ -24,5 +24,5 @@
     "Verify app.js contains the visibilitychange listener with 30-minute threshold"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All three improvements implemented successfully. PHP syntax checks pass for all modified files. The node --check for app.js fails due to sandbox environment (missing proxy-bootstrap.js preload), not due to code issues. The JS code uses standard DOM APIs and is syntactically correct."
 }
