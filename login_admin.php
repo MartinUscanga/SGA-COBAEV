@@ -1,15 +1,42 @@
 <?php
 /**
  * Login de Administradores/Vigilantes
- * Sistema de Checador - SGA COBAEV
+ * SGA COBAEV
+ * 
+ * Redirige según el origen:
+ * - Si viene desde el dashboard (admin/) -> redirige a admin/
+ * - Si viene desde el checador -> redirige a checador2.php
+ * - Por defecto -> redirige a checador2.php
  */
 
 session_start();
 $error_message = "";
 
-// Si ya está autenticado, redirigir al checador
+// Capturar destino de redirección desde parámetro GET o referrer
+$redirect_destino = $_GET['redirect'] ?? $_POST['redirect'] ?? '';
+
+// Si no hay parámetro GET, detectar desde el HTTP_REFERER
+if (empty($redirect_destino) && isset($_SERVER['HTTP_REFERER'])) {
+    $referer = $_SERVER['HTTP_REFERER'];
+    if (strpos($referer, '/admin') !== false) {
+        $redirect_destino = 'dashboard';
+    }
+}
+
+// Determinar URL de destino según el origen
+function obtenerDestinoAdmin($destino) {
+    switch ($destino) {
+        case 'dashboard':
+            return 'admin/index.php';
+        case 'checador':
+        default:
+            return 'checador2.php';
+    }
+}
+
+// Si ya está autenticado, redirigir según destino
 if (isset($_SESSION['usuario_autenticado']) && $_SESSION['usuario_autenticado'] === true) {
-    header("Location: checador.php");
+    header("Location: " . obtenerDestinoAdmin($redirect_destino));
     exit;
 }
 
@@ -61,8 +88,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['username'] = $user['username'];
             $_SESSION['ultima_actividad'] = time();
             
-            // Redirigir al checador
-            header("Location: checador.php");
+            // Redirigir según destino (dashboard o checador)
+            $destino_post = $_POST['redirect'] ?? $redirect_destino;
+            header("Location: " . obtenerDestinoAdmin($destino_post));
             exit;
         } else {
             $error_message = "Usuario o contraseña incorrectos.";
@@ -109,12 +137,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         <div class="text-center space-y-2">
             <div class="flex items-center justify-center space-x-2">
-                <span class="text-vino font-serif-elegant font-bold text-2xl tracking-wider">CHECADOR</span>
+                <span class="text-vino font-serif-elegant font-bold text-2xl tracking-wider">SGA</span>
                 <span class="text-zinc-300 text-xl">|</span>
                 <span class="text-dorado font-serif-elegant italic text-xl">Acceso Administrativo</span>
             </div>
             <p class="text-[10px] text-zinc-400 font-bold tracking-widest uppercase px-4 leading-normal">
-                Sistema de control de asistencias institucional
+                <?= $redirect_destino === 'dashboard' ? 'Panel de administración y estadísticas' : 'Sistema de control de asistencias institucional' ?>
             </p>
         </div>
 
@@ -128,6 +156,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php endif; ?>
 
         <form action="" method="POST" class="space-y-4" autocomplete="off">
+            <!-- Campo oculto para mantener el destino de redirección -->
+            <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect_destino) ?>">
             
             <div>
                 <label class="block text-xs font-bold text-zinc-500 uppercase mb-1 tracking-wide">Usuario</label>
@@ -164,7 +194,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div class="pt-2">
                 <button type="submit" class="w-full bg-vino hover:bg-opacity-95 text-white font-sans-clean font-bold text-xs tracking-wider uppercase py-3 rounded-lg shadow-sm active:scale-[0.99] transition-all">
-                    Acceder al Checador
+                    <?= $redirect_destino === 'dashboard' ? 'Acceder al Dashboard' : 'Acceder al Checador' ?>
                 </button>
             </div>
         </form>

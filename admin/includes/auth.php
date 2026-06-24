@@ -10,13 +10,13 @@ session_start();
 
 // Verificar que el usuario esta autenticado
 if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
-    header("Location: ../login_admin.php");
+    header("Location: ../login_admin.php?redirect=dashboard");
     exit;
 }
 
 // Verificar que el rol del usuario es Superadmin o Admin
 $roles_permitidos = ['Superadmin', 'Admin'];
 if (!isset($_SESSION['usuario_rol']) || !in_array($_SESSION['usuario_rol'], $roles_permitidos)) {
-    header("Location: ../login_admin.php");
+    header("Location: ../login_admin.php?redirect=dashboard");
     exit;
 }
