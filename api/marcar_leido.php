@@ -6,7 +6,9 @@
  * Endpoint POST que recibe id_aviso y actualiza leido = 1
  * Requiere sesion de tutor autenticada
  */
-session_start();
+
+// Configuración centralizada de sesiones
+require_once '../includes/session_padres.php';
 header('Content-Type: application/json; charset=utf-8');
 
 // Solo aceptar POST
@@ -17,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Verificar autenticacion de tutor
-if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
+if (!hayTutorAutenticado()) {
     http_response_code(401);
     echo json_encode(['error' => 'No autorizado']);
     exit;

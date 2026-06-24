@@ -3,21 +3,10 @@
  * Completar Perfil - Primera vez que inicia sesión
  * El padre debe llenar sus datos reales antes de acceder al portal
  */
-ini_set('session.cookie_lifetime', 2592000);
-ini_set('session.gc_maxlifetime', 2592000);
-session_set_cookie_params([
-    'lifetime' => 2592000,
-    'path' => '/',
-    'secure' => isset($_SERVER['HTTPS']),
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
-session_start();
 
-if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
-    header("Location: login_padres.php");
-    exit;
-}
+// Configuración centralizada de sesiones y autenticación
+require_once 'includes/session_padres.php';
+verificarSesionTutor();
 
 require_once 'conexion.php';
 

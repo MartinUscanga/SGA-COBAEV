@@ -8,29 +8,9 @@
 // Aseguramos el bufer de salida para evitar errores de redireccion
 ob_start();
 
-// Configurar zona horaria
-date_default_timezone_set('America/Mexico_City');
-
-// Iniciamos la sesion de forma segura
-if (session_status() === PHP_SESSION_NONE) {
-    // Cookie de sesión con duración larga (30 días) para PWA
-    ini_set('session.cookie_lifetime', 2592000);
-    ini_set('session.gc_maxlifetime', 2592000);
-    session_set_cookie_params([
-        'lifetime' => 2592000,
-        'path' => '/',
-        'secure' => isset($_SERVER['HTTPS']),
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-    session_start();
-}
-
-// Protegemos la pagina: verificar autenticacion
-if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
-    header("Location: login_padres.php");
-    exit;
-}
+// Configuración centralizada de sesiones y autenticación
+require_once 'includes/session_padres.php';
+verificarSesionTutor();
 
 // Traemos la conexion PDO
 require_once 'conexion.php';

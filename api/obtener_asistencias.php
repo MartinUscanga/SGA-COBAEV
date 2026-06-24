@@ -3,10 +3,12 @@
  * API - Obtener asistencias del alumno activo
  * Devuelve JSON con asistencias, estado actual y resumen del día
  */
-session_start();
+
+// Configuración centralizada de sesiones
+require_once '../includes/session_padres.php';
 header('Content-Type: application/json; charset=utf-8');
 
-if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
+if (!hayTutorAutenticado()) {
     http_response_code(401);
     echo json_encode(['error' => 'No autorizado']);
     exit;
