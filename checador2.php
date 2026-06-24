@@ -726,13 +726,64 @@ date_default_timezone_set('America/Mexico_City');
     window.addEventListener('offline', actualizarEstadoConexion);
 
     // ============================================
+    // PANTALLA COMPLETA (FULLSCREEN)
+    // ============================================
+    function activarPantallaCompleta() {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) { // Safari
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { // IE/Edge
+            elem.msRequestFullscreen();
+        }
+    }
+
+    function salirPantallaCompleta() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+
+    function togglePantallaCompleta() {
+        if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+            salirPantallaCompleta();
+        } else {
+            activarPantallaCompleta();
+        }
+    }
+
+    // Activar pantalla completa automáticamente al primer click
+    // (los navegadores requieren interacción del usuario para permitir fullscreen)
+    document.addEventListener('click', function activarFSUnaVez() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            activarPantallaCompleta();
+        }
+        document.removeEventListener('click', activarFSUnaVez);
+    });
+
+    // Atajo de teclado: F11 para toggle
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F11') {
+            e.preventDefault();
+            togglePantallaCompleta();
+        }
+    });
+
+    // ============================================
     // INICIALIZACION
     // ============================================
     window.onload = function() {
         actualizarReloj();
         actualizarEstadoConexion();
         cargarBitacoraInicial();
-        console.log('Checador HID v2 inicializado');
+        // Intentar pantalla completa (puede requerir interacción del usuario)
+        activarPantallaCompleta();
+        console.log('Checador HID v2 inicializado (modo pantalla completa)');
         console.log('Configuracion:', CONFIG);
     };
     </script>
