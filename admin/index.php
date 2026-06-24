@@ -116,6 +116,20 @@ require_once 'includes/header.php';
 ?>
 
         <div class="p-4 md:p-8 space-y-6">
+            <!-- Acceso rápido al Checador -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-zinc-700">Resumen del día</h2>
+                    <p class="text-xs text-zinc-400"><?= date('l d \d\e F, Y') ?></p>
+                </div>
+                <a href="../checador2.php" class="inline-flex items-center space-x-2 bg-vino hover:bg-opacity-90 text-white font-bold text-xs tracking-wider uppercase px-4 py-2.5 rounded-lg shadow-sm active:scale-[0.98] transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    <span>Abrir Checador</span>
+                </a>
+            </div>
+
             <!-- Stat Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Entradas hoy -->

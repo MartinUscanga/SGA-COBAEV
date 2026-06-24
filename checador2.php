@@ -12,14 +12,14 @@ session_start();
 
 // Verificar autenticacion
 if (!isset($_SESSION['usuario_autenticado']) || $_SESSION['usuario_autenticado'] !== true) {
-    header("Location: login_admin.php");
+    header("Location: login_admin.php?redirect=checador");
     exit;
 }
 
 // Verificar rol: solo Admin, Prefecto o Vigilante pueden acceder
 $roles_permitidos = ['Superadmin', 'Admin', 'Prefecto', 'Vigilante'];
 if (!isset($_SESSION['usuario_rol']) || !in_array($_SESSION['usuario_rol'], $roles_permitidos)) {
-    header("Location: login_admin.php");
+    header("Location: login_admin.php?redirect=checador");
     exit;
 }
 
