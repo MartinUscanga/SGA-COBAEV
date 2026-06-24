@@ -242,6 +242,9 @@ foreach ($asistencias as $reg) {
                     <p class="text-xs text-zinc-400">Cargando avisos...</p>
                 </div>
             </div>
+            <div class="px-4 py-3 border-t border-zinc-100 text-center">
+                <a href="avisos_padres.php" class="text-xs font-semibold text-vino hover:underline">Ver todos los avisos</a>
+            </div>
         </div>
 
         <!-- Menu desplegable -->
@@ -727,18 +730,14 @@ foreach ($asistencias as $reg) {
             avisos.forEach(aviso => {
                 const fecha = new Date(aviso.fecha_envio);
                 const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const mensajeCorto = aviso.mensaje.length > 80 ? aviso.mensaje.substring(0, 80) + '...' : aviso.mensaje;
 
                 html += '<div class="px-4 py-3 border-b border-zinc-50 hover:bg-zinc-50 transition-colors" id="aviso-' + aviso.id_aviso + '">';
                 html += '  <div class="flex items-start justify-between">';
                 html += '    <div class="flex-1 min-w-0 mr-2">';
                 html += '      <p class="text-xs font-bold text-zinc-700 truncate">' + escapeHtml(aviso.titulo) + '</p>';
-                html += '      <p class="text-[11px] text-zinc-500 mt-1 leading-relaxed">' + escapeHtml(mensajeCorto) + '</p>';
-                html += '      <p class="text-[9px] text-zinc-400 mt-1.5 uppercase tracking-wider">' + fechaStr + '</p>';
+                html += '      <p class="text-[9px] text-zinc-400 mt-1 uppercase tracking-wider">' + fechaStr + '</p>';
                 html += '    </div>';
-                html += '    <button onclick="marcarLeido(' + aviso.id_aviso + ')" class="flex-shrink-0 mt-0.5 w-7 h-7 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center justify-center transition-colors" title="Marcar como leido">';
-                html += '      <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
-                html += '    </button>';
+                html += '    <div class="flex-shrink-0 mt-0.5 w-2 h-2 bg-red-400 rounded-full"></div>';
                 html += '  </div>';
                 html += '</div>';
             });

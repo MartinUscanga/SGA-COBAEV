@@ -55,6 +55,23 @@ messaging.onBackgroundMessage((payload) => {
         tag: 'cobaev-bg',
         renotify: true,
         requireInteraction: true,
-        vibrate: [200, 100, 200]
+        vibrate: [200, 100, 200],
+        data: { url: payload.data?.url || '/avisos_padres.php' }
     });
+});
+
+// Manejador de click en notificacion
+self.addEventListener('notificationclick', function(event) {
+    event.notification.close();
+    const urlToOpen = event.notification.data?.url || '/avisos_padres.php';
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+            for (const client of clientList) {
+                if (client.url.includes(urlToOpen) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            return clients.openWindow(urlToOpen);
+        })
+    );
 });

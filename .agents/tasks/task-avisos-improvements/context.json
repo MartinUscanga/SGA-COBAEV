@@ -1,0 +1,26 @@
+{
+  "project_type": "PHP + PDO + MySQL + Tailwind CSS (CDN). PWA with Firebase Cloud Messaging.",
+  "language": "PHP",
+  "build_system": "None (plain PHP served by Apache/XAMPP). Composer for Firebase SDK dependency.",
+  "test_framework": "None (no automated tests). Manual verification via PHP syntax check.",
+  "build_command": "find . -name '*.php' -not -path './vendor/*' -exec php -l {} \\;",
+  "test_command": "find . -name '*.php' -not -path './vendor/*' -exec php -l {} \\;",
+  "verification_instructions": "Run php -l on all modified PHP files to ensure no syntax errors.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed - plain PHP project. Composer autoload is used for Firebase SDK.",
+  "environment_constraints": "Open internet. No database available for testing - validate via PHP syntax only. No iniciar_sesion_padres.php exists - parent pages use inline session config (30-day cookie lifetime with session_start).",
+  "contribution_requirements": "Follow existing coding patterns. Use same Tailwind CSS classes and color scheme (bg-crema, text-vino, bg-vino, text-dorado). Use same font families (Playfair Display, Plus Jakarta Sans).",
+  "key_patterns": "PDO with named parameters. Session auth check: $_SESSION['tutor_autenticado']. Admin auth: $_SESSION['usuario_autenticado']. API endpoints return JSON with 'success' boolean. Push notifications via enviarAlertaFirebase($token, $mensaje) which sends data-only FCM messages. Parent session vars: tutor_autenticado, alumno_matricula, tutor_nombre, alumnos (array). dispositivos_padres table stores FCM tokens with columns: id, matricula_alumno, token_fcm, fecha_registro.",
+  "relevant_files": [
+    "admin/avisos.php",
+    "api/obtener_avisos.php",
+    "api/marcar_leido.php",
+    "padres.php",
+    "sw.js",
+    "enviar_notificacion.php",
+    "conexion.php",
+    "database_structure.sql",
+    "perfil_tutor.php"
+  ],
+  "directory_structure": "Root: PHP files (login, portals, APIs). admin/: Admin panel pages with includes/ subdir for layout partials. api/: JSON API endpoints. config/: Firebase service-account.json. No sql/ directory yet."
+}

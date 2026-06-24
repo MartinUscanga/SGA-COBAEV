@@ -1,0 +1,22 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "SQL migration file for avisos_leidos table. Creates sql/ directory with migracion_avisos_v2.sql containing the CREATE TABLE for avisos_leidos.",
+  "status": "in_progress",
+  "steps": [
+    "Create directory sql/ at project root",
+    "Create sql/migracion_avisos_v2.sql with: CREATE TABLE avisos_leidos (id INT AUTO_INCREMENT PRIMARY KEY, id_aviso INT NOT NULL, matricula_alumno VARCHAR(8) NOT NULL, fecha_lectura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (id_aviso) REFERENCES avisos(id_aviso) ON DELETE CASCADE, FOREIGN KEY (matricula_alumno) REFERENCES alumnos(matricula) ON DELETE CASCADE, UNIQUE KEY unique_aviso_alumno (id_aviso, matricula_alumno), INDEX idx_matricula (matricula_alumno), INDEX idx_aviso (id_aviso)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+    "Add a comment at the top noting this is v2 migration and that the `leido` field in avisos table is kept for backward compatibility but individual read tracking is now in avisos_leidos"
+  ],
+  "acceptance_criteria": [
+    "File sql/migracion_avisos_v2.sql exists with valid SQL syntax",
+    "Table has unique constraint on (id_aviso, matricula_alumno) to prevent duplicate reads",
+    "Foreign keys reference avisos(id_aviso) and alumnos(matricula)"
+  ],
+  "verification": [
+    "Run php -l on all modified PHP files (none for this feature)",
+    "Visually inspect the SQL file for correctness"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

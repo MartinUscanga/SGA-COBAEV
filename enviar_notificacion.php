@@ -14,9 +14,11 @@ use Google\Auth\HttpHandler\HttpHandlerFactory;
  * 
  * @param string $token_padre Token FCM del dispositivo del tutor
  * @param string $mensaje_texto Cuerpo del mensaje a enviar
+ * @param string $titulo_notificacion Titulo de la notificacion (default: 'Alerta de Acceso COBAEV')
+ * @param string $url_destino URL destino al hacer click en la notificacion (default: '/padres.php')
  * @return string JSON con resultado de la operación
  */
-function enviarAlertaFirebase($token_padre, $mensaje_texto) {
+function enviarAlertaFirebase($token_padre, $mensaje_texto, $titulo_notificacion = 'Alerta de Acceso COBAEV', $url_destino = '/padres.php') {
     // 1. Obtener credenciales del archivo service-account.json
     $rutaCredenciales = __DIR__ . '/config/service-account.json';
     
@@ -61,11 +63,11 @@ function enviarAlertaFirebase($token_padre, $mensaje_texto) {
         'message' => [
             'token' => $token_padre,
             'data' => [
-                'title' => 'Alerta de Acceso COBAEV',
+                'title' => $titulo_notificacion,
                 'body' => $mensaje_texto,
                 'tipo' => 'asistencia',
                 'timestamp' => date('Y-m-d H:i:s'),
-                'url' => '/padres.php',
+                'url' => $url_destino,
                 'icon' => '/logo.png'
             ],
             'android' => [
