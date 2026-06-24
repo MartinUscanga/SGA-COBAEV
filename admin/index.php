@@ -64,16 +64,18 @@ $stmt = $pdo->prepare("
 $stmt->execute(['fecha' => $hoy]);
 $ultimos_movimientos = $stmt->fetchAll();
 
-// Datos para grafica semanal (ultimos 7 dias) - single GROUP BY query
+// Datos para grafica semanal (ultimos 7 dias) - Porcentaje de asistencia
 $fecha_inicio_semana = date('Y-m-d', strtotime('-6 days'));
 $fecha_fin_semana = date('Y-m-d');
 
+// Obtener alumnos únicos que registraron ENTRADA por día (sin contar salidas)
 $stmt = $pdo->prepare("
     SELECT fecha,
-        SUM(CASE WHEN tipo = 'Entrada' THEN 1 ELSE 0 END) as entradas,
-        SUM(CASE WHEN tipo = 'Salida' THEN 1 ELSE 0 END) as salidas
+        COUNT(DISTINCT matricula_alumno) as alumnos_asistieron
     FROM asistencias
-    WHERE fecha >= :fecha_inicio AND fecha <= :fecha_fin
+    WHERE fecha >= :fecha_inicio 
+    AND fecha <= :fecha_fin
+    AND tipo = 'Entrada'
     GROUP BY fecha
     ORDER BY fecha ASC
 ");
@@ -91,18 +93,17 @@ $datos_semana = [];
 for ($i = 6; $i >= 0; $i--) {
     $dia = date('Y-m-d', strtotime("-$i days"));
     $row = $semana_por_fecha[$dia] ?? null;
+    $alumnos_asistieron = (int)($row['alumnos_asistieron'] ?? 0);
+    
+    // Calcular porcentaje (evitar división por cero)
+    $porcentaje = ($total_alumnos > 0) ? round(($alumnos_asistieron / $total_alumnos) * 100, 1) : 0;
+    
     $datos_semana[] = [
         'dia' => date('D', strtotime($dia)),
         'fecha' => $dia,
-        'entradas' => (int)($row['entradas'] ?? 0),
-        'salidas' => (int)($row['salidas'] ?? 0)
+        'alumnos_asistieron' => $alumnos_asistieron,
+        'porcentaje' => $porcentaje
     ];
-}
-
-$max_val = 1;
-foreach ($datos_semana as $d) {
-    if ($d['entradas'] > $max_val) $max_val = $d['entradas'];
-    if ($d['salidas'] > $max_val) $max_val = $d['salidas'];
 }
 
 $pagina_actual = 'dashboard';
@@ -212,32 +213,73 @@ require_once 'includes/header.php';
                     </div>
                 </div>
 
-                <!-- Grafica semanal -->
+                <!-- Grafica semanal - Porcentaje de Asistencia -->
                 <div class="bg-white rounded-xl border border-zinc-200 p-6">
                     <h3 class="font-serif-elegant text-lg font-bold text-vino mb-1">Asistencia Semanal</h3>
-                    <p class="text-xs text-zinc-400 mb-4">Ultimos 7 dias</p>
+                    <p class="text-xs text-zinc-400 mb-4">Porcentaje de alumnos que asistieron (últimos 7 días)</p>
                     <div class="space-y-3">
                         <?php foreach ($datos_semana as $d): ?>
                         <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-xs font-medium text-zinc-600"><?= $d['dia'] ?></span>
-                                <span class="text-xs text-zinc-400"><?= $d['entradas'] ?>E / <?= $d['salidas'] ?>S</span>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-xs font-semibold text-zinc-600"><?= $d['dia'] ?></span>
+                                <div class="text-right">
+                                    <span class="text-sm font-bold text-vino"><?= $d['porcentaje'] ?>%</span>
+                                    <span class="text-xs text-zinc-400 ml-1">(<?= $d['alumnos_asistieron'] ?>/<?= $total_alumnos ?>)</span>
+                                </div>
                             </div>
-                            <div class="flex space-x-1">
-                                <div class="h-4 rounded bg-green-400" style="width: <?= ($d['entradas'] / $max_val) * 100 ?>%"></div>
-                                <div class="h-4 rounded bg-orange-400" style="width: <?= ($d['salidas'] / $max_val) * 100 ?>%"></div>
+                            <div class="relative w-full h-5 bg-zinc-100 rounded-lg overflow-hidden">
+                                <?php 
+                                    // Color dinámico según porcentaje
+                                    $color_class = 'bg-zinc-300';
+                                    if ($d['porcentaje'] >= 90) {
+                                        $color_class = 'bg-emerald-500';
+                                    } elseif ($d['porcentaje'] >= 75) {
+                                        $color_class = 'bg-green-500';
+                                    } elseif ($d['porcentaje'] >= 60) {
+                                        $color_class = 'bg-yellow-500';
+                                    } elseif ($d['porcentaje'] >= 40) {
+                                        $color_class = 'bg-orange-500';
+                                    } elseif ($d['porcentaje'] > 0) {
+                                        $color_class = 'bg-red-500';
+                                    }
+                                ?>
+                                <div class="h-full <?= $color_class ?> transition-all duration-500 flex items-center justify-end pr-2" 
+                                     style="width: <?= $d['porcentaje'] ?>%">
+                                    <?php if ($d['porcentaje'] >= 15): ?>
+                                        <span class="text-white text-[10px] font-bold"><?= $d['porcentaje'] ?>%</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
                     </div>
-                    <div class="flex items-center space-x-4 mt-4 pt-4 border-t border-zinc-100">
-                        <div class="flex items-center space-x-1">
-                            <div class="w-3 h-3 rounded bg-green-400"></div>
-                            <span class="text-xs text-zinc-500">Entradas</span>
-                        </div>
-                        <div class="flex items-center space-x-1">
-                            <div class="w-3 h-3 rounded bg-orange-400"></div>
-                            <span class="text-xs text-zinc-500">Salidas</span>
+                    <div class="mt-4 pt-4 border-t border-zinc-100">
+                        <p class="text-xs font-medium text-zinc-500 mb-2">Referencia de Colores:</p>
+                        <div class="grid grid-cols-2 gap-2 text-[10px]">
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-3 h-3 rounded bg-emerald-500"></div>
+                                <span class="text-zinc-600">&#8805;90% Excelente</span>
+                            </div>
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-3 h-3 rounded bg-green-500"></div>
+                                <span class="text-zinc-600">&#8805;75% Bueno</span>
+                            </div>
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-3 h-3 rounded bg-yellow-500"></div>
+                                <span class="text-zinc-600">&#8805;60% Regular</span>
+                            </div>
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-3 h-3 rounded bg-orange-500"></div>
+                                <span class="text-zinc-600">&#8805;40% Bajo</span>
+                            </div>
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-3 h-3 rounded bg-red-500"></div>
+                                <span class="text-zinc-600">&lt;40% Critico</span>
+                            </div>
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-3 h-3 rounded bg-zinc-300"></div>
+                                <span class="text-zinc-600">0% Sin datos</span>
+                            </div>
                         </div>
                     </div>
                 </div>
