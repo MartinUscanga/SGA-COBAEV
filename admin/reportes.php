@@ -20,15 +20,21 @@ $grupo_filtro = $_GET['grupo'] ?? '';
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_inicio)) $fecha_inicio = date('Y-m-d', strtotime('-7 days'));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_fin)) $fecha_fin = date('Y-m-d');
 
-// Detectar si la columna 'activo' existe en la tabla alumnos
-$tiene_columna_activo = false;
+// Detectar si la columna 'activo' o 'estado' existe en la tabla alumnos
+$filtro_activo = "";
 try {
     $check = $pdo->query("SHOW COLUMNS FROM alumnos LIKE 'activo'");
-    $tiene_columna_activo = ($check->rowCount() > 0);
+    if ($check->rowCount() > 0) {
+        $filtro_activo = "AND a.activo = 1";
+    } else {
+        $check2 = $pdo->query("SHOW COLUMNS FROM alumnos LIKE 'estado'");
+        if ($check2->rowCount() > 0) {
+            $filtro_activo = "AND a.estado = 'Activo'";
+        }
+    }
 } catch (PDOException $e) {
-    $tiene_columna_activo = false;
+    $filtro_activo = "";
 }
-$filtro_activo = $tiene_columna_activo ? "AND a.activo = 1" : "";
 
 // Obtener lista de grupos disponibles
 try {
@@ -78,7 +84,7 @@ try {
         AND a.grupo != ''
         $filtro_activo
         $where_grupo
-        GROUP BY a.grupo, a.matricula, nombre_completo
+        GROUP BY a.grupo, a.matricula, a.nombre, a.apellido_paterno, a.apellido_materno
         ORDER BY a.grupo ASC, a.apellido_paterno ASC, a.nombre ASC
     ";
 
