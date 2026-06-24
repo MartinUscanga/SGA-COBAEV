@@ -726,12 +726,84 @@ date_default_timezone_set('America/Mexico_City');
     window.addEventListener('offline', actualizarEstadoConexion);
 
     // ============================================
+    // PANTALLA COMPLETA (FULLSCREEN)
+    // ============================================
+    function activarPantallaCompleta() {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+            elem.msRequestFullscreen();
+        }
+        // Ocultar el overlay
+        const overlay = document.getElementById('fullscreen-overlay');
+        if (overlay) overlay.remove();
+    }
+
+    // Mostrar overlay pidiendo activar pantalla completa
+    function mostrarOverlayFullscreen() {
+        // Si ya está en fullscreen, no mostrar
+        if (document.fullscreenElement || document.webkitFullscreenElement) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'fullscreen-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="text-align:center;max-width:400px;padding:2rem;">
+                <div style="width:64px;height:64px;margin:0 auto 1.5rem;background:rgba(164,130,83,0.15);border-radius:16px;display:flex;align-items:center;justify-content:center;">
+                    <svg width="32" height="32" fill="none" stroke="#a48253" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V6a2 2 0 012-2h2M4 16v2a2 2 0 002 2h2M16 4h2a2 2 0 012 2v2M16 20h2a2 2 0 002-2v-2"/>
+                    </svg>
+                </div>
+                <h2 style="color:#fff;font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;">Modo Pantalla Completa</h2>
+                <p style="color:#a1a1aa;font-size:0.85rem;line-height:1.5;margin-bottom:1.5rem;">
+                    Para una mejor experiencia con el checador, es necesario activar el modo pantalla completa.
+                </p>
+                <button onclick="activarPantallaCompleta()" id="btn-fullscreen" style="background:#5c1931;color:#fff;font-weight:700;font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase;padding:0.75rem 2rem;border:none;border-radius:8px;cursor:pointer;transition:opacity 0.2s;">
+                    Activar Pantalla Completa
+                </button>
+                <p style="color:#71717a;font-size:0.65rem;margin-top:1rem;text-transform:uppercase;letter-spacing:0.1em;">
+                    Presiona Enter o F11 para activar
+                </p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Enfocar el botón para que Enter funcione de inmediato
+        setTimeout(() => {
+            const btn = document.getElementById('btn-fullscreen');
+            if (btn) btn.focus();
+        }, 100);
+    }
+
+    // Atajo de teclado: F11 para toggle, Enter para activar cuando el overlay está visible
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F11') {
+            e.preventDefault();
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } else {
+                activarPantallaCompleta();
+            }
+        }
+        if (e.key === 'Enter' && document.getElementById('fullscreen-overlay')) {
+            e.preventDefault();
+            activarPantallaCompleta();
+        }
+    });
+
+    // ============================================
     // INICIALIZACION
     // ============================================
     window.onload = function() {
         actualizarReloj();
         actualizarEstadoConexion();
         cargarBitacoraInicial();
+        // Mostrar mensaje para activar pantalla completa
+        mostrarOverlayFullscreen();
         console.log('Checador HID v2 inicializado');
         console.log('Configuracion:', CONFIG);
     };
