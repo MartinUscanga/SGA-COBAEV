@@ -8,6 +8,9 @@
 require_once 'includes/auth.php';
 require_once '../conexion.php';
 
+// Configurar zona horaria
+date_default_timezone_set('America/Mexico_City');
+
 // Filtros
 $fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-d', strtotime('-7 days'));
 $fecha_fin = $_GET['fecha_fin'] ?? date('Y-m-d');
@@ -17,9 +20,29 @@ $grupo_filtro = $_GET['grupo'] ?? '';
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_inicio)) $fecha_inicio = date('Y-m-d', strtotime('-7 days'));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_fin)) $fecha_fin = date('Y-m-d');
 
+// Detectar si la columna 'activo' o 'estado' existe en la tabla alumnos
+$filtro_activo = "";
+try {
+    $check = $pdo->query("SHOW COLUMNS FROM alumnos LIKE 'activo'");
+    if ($check->rowCount() > 0) {
+        $filtro_activo = "AND a.activo = 1";
+    } else {
+        $check2 = $pdo->query("SHOW COLUMNS FROM alumnos LIKE 'estado'");
+        if ($check2->rowCount() > 0) {
+            $filtro_activo = "AND a.estado = 'Activo'";
+        }
+    }
+} catch (PDOException $e) {
+    $filtro_activo = "";
+}
+
 // Obtener lista de grupos disponibles
-$stmt = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' AND activo = 1 ORDER BY grupo ASC");
-$grupos_disponibles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+try {
+    $stmt = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' $filtro_activo ORDER BY grupo ASC");
+    $grupos_disponibles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    $grupos_disponibles = [];
+}
 
 // Calcular días hábiles en el rango (Lunes a Viernes)
 $dias_habiles = 0;
@@ -44,29 +67,34 @@ if (!empty($grupo_filtro)) {
 }
 
 // Query principal: Alumnos por grupo con sus asistencias en el rango
-$sql = "
-    SELECT 
-        a.grupo,
-        a.matricula,
-        CONCAT(a.nombre, ' ', a.apellido_paterno, ' ', IFNULL(a.apellido_materno, '')) AS nombre_completo,
-        COUNT(DISTINCT CASE WHEN asist.tipo = 'Entrada' THEN asist.fecha END) AS dias_asistidos
-    FROM alumnos a
-    LEFT JOIN asistencias asist 
-        ON a.matricula = asist.matricula_alumno 
-        AND asist.fecha >= :fecha_inicio 
-        AND asist.fecha <= :fecha_fin
-        AND asist.tipo = 'Entrada'
-    WHERE a.activo = 1
-    AND a.grupo IS NOT NULL 
-    AND a.grupo != ''
-    $where_grupo
-    GROUP BY a.grupo, a.matricula, nombre_completo
-    ORDER BY a.grupo ASC, a.apellido_paterno ASC, a.nombre ASC
-";
+try {
+    $sql = "
+        SELECT 
+            a.grupo,
+            a.matricula,
+            CONCAT(a.nombre, ' ', a.apellido_paterno, ' ', IFNULL(a.apellido_materno, '')) AS nombre_completo,
+            COUNT(DISTINCT CASE WHEN asist.tipo = 'Entrada' THEN asist.fecha END) AS dias_asistidos
+        FROM alumnos a
+        LEFT JOIN asistencias asist 
+            ON a.matricula = asist.matricula_alumno 
+            AND asist.fecha >= :fecha_inicio 
+            AND asist.fecha <= :fecha_fin
+            AND asist.tipo = 'Entrada'
+        WHERE a.grupo IS NOT NULL 
+        AND a.grupo != ''
+        $filtro_activo
+        $where_grupo
+        GROUP BY a.grupo, a.matricula, a.nombre, a.apellido_paterno, a.apellido_materno
+        ORDER BY a.grupo ASC, a.apellido_paterno ASC, a.nombre ASC
+    ";
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error en reportes.php: " . $e->getMessage());
+    $resultados = [];
+}
 
 // Agrupar resultados por grupo
 $reporte_por_grupo = [];
