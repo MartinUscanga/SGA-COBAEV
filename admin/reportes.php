@@ -12,36 +12,44 @@ require_once '../conexion.php';
 date_default_timezone_set('America/Mexico_City');
 
 // Filtros
-$fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-d', strtotime('-7 days'));
+$fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-d', strtotime('-30 days'));
 $fecha_fin = $_GET['fecha_fin'] ?? date('Y-m-d');
 $grupo_filtro = $_GET['grupo'] ?? '';
 
 // Validar fechas
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_inicio)) $fecha_inicio = date('Y-m-d', strtotime('-7 days'));
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_inicio)) $fecha_inicio = date('Y-m-d', strtotime('-30 days'));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_fin)) $fecha_fin = date('Y-m-d');
 
-// Detectar si la columna 'activo' o 'estado' existe en la tabla alumnos
+// Detectar filtro de alumnos activos (compatible con distintas estructuras de BD)
 $filtro_activo = "";
 try {
-    $check = $pdo->query("SHOW COLUMNS FROM alumnos LIKE 'activo'");
-    if ($check->rowCount() > 0) {
-        $filtro_activo = "AND a.activo = 1";
-    } else {
-        $check2 = $pdo->query("SHOW COLUMNS FROM alumnos LIKE 'estado'");
-        if ($check2->rowCount() > 0) {
-            $filtro_activo = "AND a.estado = 'Activo'";
-        }
-    }
+    // Intentar primero con 'estado' (BD de producción)
+    $test = $pdo->query("SELECT 1 FROM alumnos WHERE estado = 'Activo' LIMIT 1");
+    $filtro_activo = "AND a.estado = 'Activo'";
 } catch (PDOException $e) {
-    $filtro_activo = "";
+    try {
+        // Intentar con 'activo' (BD de desarrollo)
+        $test = $pdo->query("SELECT 1 FROM alumnos WHERE activo = 1 LIMIT 1");
+        $filtro_activo = "AND a.activo = 1";
+    } catch (PDOException $e2) {
+        // Ninguna columna existe, no filtrar
+        $filtro_activo = "";
+    }
 }
 
 // Obtener lista de grupos disponibles
 try {
-    $stmt = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' $filtro_activo ORDER BY grupo ASC");
+    $sql_grupos = "SELECT DISTINCT grupo FROM alumnos a WHERE grupo IS NOT NULL AND grupo != '' $filtro_activo ORDER BY grupo ASC";
+    $stmt = $pdo->query($sql_grupos);
     $grupos_disponibles = $stmt->fetchAll(PDO::FETCH_COLUMN);
 } catch (PDOException $e) {
-    $grupos_disponibles = [];
+    // Fallback sin filtro de activo
+    try {
+        $stmt = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' ORDER BY grupo ASC");
+        $grupos_disponibles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e2) {
+        $grupos_disponibles = [];
+    }
 }
 
 // Calcular días hábiles en el rango (Lunes a Viernes)
