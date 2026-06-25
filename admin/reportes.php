@@ -75,6 +75,8 @@ if (!empty($grupo_filtro)) {
 }
 
 // Query principal: Alumnos por grupo con sus asistencias en el rango
+$resultados = [];
+$fechas_asistencia = []; // matricula => [fecha1, fecha2, ...]
 try {
     $sql = "
         SELECT 
@@ -99,9 +101,39 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Obtener fechas específicas de asistencia por alumno
+    $sql_fechas = "
+        SELECT matricula_alumno, fecha
+        FROM asistencias
+        WHERE fecha >= :fecha_inicio 
+        AND fecha <= :fecha_fin
+        AND tipo = 'Entrada'
+        GROUP BY matricula_alumno, fecha
+    ";
+    $stmt_fechas = $pdo->prepare($sql_fechas);
+    $stmt_fechas->execute(['fecha_inicio' => $fecha_inicio, 'fecha_fin' => $fecha_fin]);
+    $rows_fechas = $stmt_fechas->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($rows_fechas as $rf) {
+        $fechas_asistencia[$rf['matricula_alumno']][] = $rf['fecha'];
+    }
+
 } catch (PDOException $e) {
     error_log("Error en reportes.php: " . $e->getMessage());
     $resultados = [];
+}
+
+// Generar array de días hábiles en el rango
+$dias_habiles_lista = [];
+$fecha_iter = new DateTime($fecha_inicio);
+$fecha_fin_dt = new DateTime($fecha_fin);
+while ($fecha_iter <= $fecha_fin_dt) {
+    $dia_sem = (int)$fecha_iter->format('N');
+    if ($dia_sem <= 5) {
+        $dias_habiles_lista[] = $fecha_iter->format('Y-m-d');
+    }
+    $fecha_iter->modify('+1 day');
 }
 
 // Agrupar resultados por grupo
@@ -122,7 +154,8 @@ foreach ($resultados as $row) {
         'matricula' => $row['matricula'],
         'nombre' => trim($row['nombre_completo']),
         'dias_asistidos' => (int)$row['dias_asistidos'],
-        'porcentaje' => $porcentaje_alumno
+        'porcentaje' => $porcentaje_alumno,
+        'fechas_asistio' => $fechas_asistencia[$row['matricula']] ?? []
     ];
     $reporte_por_grupo[$grupo]['total_alumnos']++;
     $reporte_por_grupo[$grupo]['suma_asistencias'] += (int)$row['dias_asistidos'];
@@ -286,39 +319,38 @@ require_once 'includes/header.php';
                         <table class="w-full text-sm">
                             <thead class="bg-zinc-50 text-xs uppercase text-zinc-500 tracking-wide">
                                 <tr>
-                                    <th class="px-6 py-3 text-left">Alumno</th>
-                                    <th class="px-6 py-3 text-left">Matricula</th>
-                                    <th class="px-6 py-3 text-center">Dias Asistidos</th>
-                                    <th class="px-6 py-3 text-center">Porcentaje</th>
-                                    <th class="px-6 py-3 text-center">Estado</th>
+                                    <th class="px-4 py-3 text-left">Alumno</th>
+                                    <th class="px-2 py-3 text-left">Matricula</th>
+                                    <th class="px-2 py-3 text-center">Asistencia</th>
+                                    <th class="px-2 py-3 text-center">%</th>
+                                    <th class="px-2 py-3 text-center">Estado</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-zinc-100">
                                 <?php foreach ($data['alumnos'] as $alumno): ?>
                                 <tr class="hover:bg-zinc-50/50">
-                                    <td class="px-6 py-3 font-medium text-zinc-700">
+                                    <td class="px-4 py-3 font-medium text-zinc-700 text-xs">
                                         <?= htmlspecialchars($alumno['nombre']) ?>
                                     </td>
-                                    <td class="px-6 py-3 text-zinc-500 font-mono text-xs">
+                                    <td class="px-2 py-3 text-zinc-500 font-mono text-[10px]">
                                         <?= htmlspecialchars($alumno['matricula']) ?>
                                     </td>
-                                    <td class="px-6 py-3 text-center text-zinc-600">
-                                        <?= $alumno['dias_asistidos'] ?> / <?= $dias_habiles ?>
+                                    <td class="px-2 py-2 text-center">
+                                        <!-- Lista de asistencia estilo profesor -->
+                                        <div class="flex items-center justify-center flex-wrap gap-[3px]">
+                                            <?php foreach ($dias_habiles_lista as $dia_habil): ?>
+                                                <?php $asistio = in_array($dia_habil, $alumno['fechas_asistio']); ?>
+                                                <div title="<?= date('d/m', strtotime($dia_habil)) ?>" 
+                                                     class="w-4 h-4 rounded-sm flex items-center justify-center text-[8px] font-bold cursor-default
+                                                     <?= $asistio ? 'bg-emerald-100 text-emerald-600' : 'bg-red-50 text-red-300' ?>">
+                                                    <?= $asistio ? '&#10003;' : '&bull;' ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <p class="text-[9px] text-zinc-400 mt-1"><?= $alumno['dias_asistidos'] ?> / <?= $dias_habiles ?> dias</p>
                                     </td>
-                                    <td class="px-6 py-3 text-center">
-                                        <div class="flex items-center justify-center space-x-2">
-                                            <div class="w-16 h-2 bg-zinc-100 rounded-full overflow-hidden">
-                                                <?php
-                                                    $al_color = 'bg-zinc-300';
-                                                    if ($alumno['porcentaje'] >= 90) $al_color = 'bg-emerald-500';
-                                                    elseif ($alumno['porcentaje'] >= 75) $al_color = 'bg-green-500';
-                                                    elseif ($alumno['porcentaje'] >= 60) $al_color = 'bg-yellow-500';
-                                                    elseif ($alumno['porcentaje'] >= 40) $al_color = 'bg-orange-500';
-                                                    elseif ($alumno['porcentaje'] > 0) $al_color = 'bg-red-500';
-                                                ?>
-                                                <div class="h-full <?= $al_color ?> rounded-full" style="width: <?= $alumno['porcentaje'] ?>%"></div>
-                                            </div>
-                                            <span class="text-xs font-bold text-zinc-600"><?= $alumno['porcentaje'] ?>%</span>
+                                    <td class="px-2 py-3 text-center">
+                                        <span class="text-xs font-bold text-zinc-600"><?= $alumno['porcentaje'] ?>%</span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-3 text-center">
