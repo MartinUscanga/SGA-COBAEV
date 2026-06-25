@@ -12,6 +12,9 @@ require_once '../conexion.php';
 // Configurar zona horaria
 date_default_timezone_set('America/Mexico_City');
 
+// Días de la semana en español
+$dias_es = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mié','Thu'=>'Jue','Fri'=>'Vie','Sat'=>'Sáb','Sun'=>'Dom'];
+
 // Filtros
 $fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-d', strtotime('-30 days'));
 $fecha_fin = $_GET['fecha_fin'] ?? date('Y-m-d');
@@ -220,7 +223,7 @@ require_once 'includes/header.php';
                 </div>
             <?php else: ?>
 
-                <!-- Reporte por grupo - Estilo lista de asistencia -->
+                <!-- Reporte por grupo -->
                 <?php foreach ($reporte_por_grupo as $grupo => $data): ?>
                 <div class="bg-white rounded-xl border border-zinc-200 overflow-hidden" id="grupo-<?= htmlspecialchars($grupo) ?>">
                     <!-- Header del grupo -->
@@ -245,31 +248,31 @@ require_once 'includes/header.php';
                         </div>
                     </div>
 
-                    <!-- Tabla estilo lista de asistencia del profesor -->
+                    <!-- Tabla estilo lista de asistencia -->
                     <div class="overflow-x-auto">
-                        <table class="text-xs border-collapse">
+                        <table class="w-full text-xs border-collapse">
                             <thead>
                                 <tr class="bg-zinc-50">
-                                    <th class="px-3 py-2 text-left font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 sticky left-0 bg-zinc-50 z-10 whitespace-nowrap">Alumno</th>
+                                    <th class="px-3 py-2 text-left font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 sticky left-0 bg-zinc-50 z-10 whitespace-nowrap" style="width:200px;">Alumno</th>
                                     <?php foreach ($dias_habiles_lista as $dia): ?>
-                                        <th class="px-1 py-2 text-center font-bold text-zinc-400 border-b border-zinc-200 w-7">
-                                            <div class="text-[9px] leading-tight"><?= date('D', strtotime($dia)) ?></div>
+                                        <th class="py-2 text-center font-bold text-zinc-400 border-b border-zinc-200" style="width:28px;">
+                                            <div class="text-[9px] leading-tight"><?= $dias_es[date('D', strtotime($dia))] ?></div>
                                             <div class="text-[10px] text-zinc-600 font-bold"><?= date('d', strtotime($dia)) ?></div>
                                         </th>
                                     <?php endforeach; ?>
-                                    <th class="px-2 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 whitespace-nowrap">Total</th>
-                                    <th class="px-2 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200">%</th>
+                                    <th class="px-2 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 whitespace-nowrap" style="width:50px;">Total</th>
+                                    <th class="px-2 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200" style="width:45px;">%</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($data['alumnos'] as $idx => $alumno): ?>
                                 <tr class="<?= $idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50' ?> hover:bg-blue-50/30">
-                                    <td class="px-3 py-2 font-medium text-zinc-700 border-b border-zinc-100 sticky left-0 <?= $idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50' ?> z-10 whitespace-nowrap">
-                                        <?= htmlspecialchars(mb_substr($alumno['nombre'], 0, 25)) ?><?= mb_strlen($alumno['nombre']) > 25 ? '...' : '' ?>
+                                    <td class="px-3 py-2 font-medium text-zinc-700 border-b border-zinc-100 sticky left-0 <?= $idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50' ?> z-10 whitespace-nowrap" style="width:200px;">
+                                        <?= htmlspecialchars(mb_substr($alumno['nombre'], 0, 30)) ?><?= mb_strlen($alumno['nombre']) > 30 ? '...' : '' ?>
                                     </td>
                                     <?php foreach ($dias_habiles_lista as $dia): ?>
                                         <?php $asistio = in_array($dia, $alumno['fechas_asistio']); ?>
-                                        <td class="px-0 py-2 text-center border-b border-zinc-100">
+                                        <td class="py-2 text-center border-b border-zinc-100">
                                             <?php if ($asistio): ?>
                                                 <span class="inline-block w-5 h-5 leading-5 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold text-center">&#10003;</span>
                                             <?php else: ?>
@@ -312,16 +315,15 @@ require_once 'includes/header.php';
             btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span>Generando...</span>';
             btn.disabled = true;
 
-            // Crear contenedor temporal para el PDF
             const container = document.createElement('div');
-            container.style.padding = '20px';
+            container.style.padding = '15px';
             container.style.background = 'white';
+            container.style.fontFamily = 'Arial, sans-serif';
             
-            // Título
             container.innerHTML = `
-                <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #5c1931;padding-bottom:15px;">
-                    <h1 style="font-size:18px;font-weight:bold;color:#5c1931;margin:0;">SGA COBAEV - Reporte de Asistencia</h1>
-                    <p style="font-size:11px;color:#666;margin-top:5px;">
+                <div style="text-align:center;margin-bottom:15px;border-bottom:2px solid #5c1931;padding-bottom:10px;">
+                    <h1 style="font-size:16px;font-weight:bold;color:#5c1931;margin:0;">SGA COBAEV - Reporte de Asistencia</h1>
+                    <p style="font-size:10px;color:#666;margin-top:4px;">
                         Periodo: <?= date('d/m/Y', strtotime($fecha_inicio)) ?> al <?= date('d/m/Y', strtotime($fecha_fin)) ?> 
                         &bull; Dias habiles: <?= $dias_habiles ?>
                         &bull; Generado: ${new Date().toLocaleDateString('es-MX')}
@@ -329,26 +331,69 @@ require_once 'includes/header.php';
                 </div>
             `;
 
-            // Copiar las tablas de grupos
             const grupos = document.querySelectorAll('[id^="grupo-"]');
             grupos.forEach(grupo => {
                 const clon = grupo.cloneNode(true);
-                clon.style.marginBottom = '20px';
+                clon.style.marginBottom = '15px';
                 clon.style.border = '1px solid #e4e4e7';
-                clon.style.borderRadius = '8px';
+                clon.style.borderRadius = '6px';
                 clon.style.overflow = 'hidden';
+                
+                // Forzar encabezados repetidos en cada página
+                const table = clon.querySelector('table');
+                if (table) {
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+                    table.style.fontSize = '8px';
+                    
+                    const thead = table.querySelector('thead');
+                    if (thead) {
+                        thead.style.display = 'table-header-group';
+                        thead.querySelectorAll('th').forEach(th => {
+                            th.style.background = '#f4f4f5';
+                            th.style.borderBottom = '1px solid #e4e4e7';
+                            th.style.padding = '4px 2px';
+                            th.style.fontSize = '7px';
+                            th.style.fontWeight = 'bold';
+                            th.style.textAlign = 'center';
+                        });
+                        const firstTh = thead.querySelector('th');
+                        if (firstTh) firstTh.style.textAlign = 'left';
+                    }
+                    
+                    table.querySelectorAll('tbody td').forEach(td => {
+                        td.style.borderBottom = '1px solid #f4f4f5';
+                        td.style.padding = '3px 1px';
+                        td.style.textAlign = 'center';
+                        td.style.fontSize = '8px';
+                    });
+                    table.querySelectorAll('tbody tr').forEach(tr => {
+                        const firstTd = tr.querySelector('td');
+                        if (firstTd) {
+                            firstTd.style.textAlign = 'left';
+                            firstTd.style.paddingLeft = '4px';
+                            firstTd.style.fontWeight = '500';
+                        }
+                    });
+                }
+                
+                // Quitar sticky (no funciona en PDF)
+                clon.querySelectorAll('[class*="sticky"]').forEach(el => {
+                    el.style.position = 'static';
+                });
+                
                 container.appendChild(clon);
             });
 
             document.body.appendChild(container);
 
             const opt = {
-                margin: [10, 5, 10, 5],
+                margin: [8, 4, 8, 4],
                 filename: 'Reporte_Asistencia_<?= htmlspecialchars($grupo_filtro ?: "Todos") ?>_<?= date("Y-m-d") ?>.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
+                image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             html2pdf().set(opt).from(container).save().then(() => {
