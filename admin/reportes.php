@@ -79,7 +79,7 @@ try {
         SELECT 
             a.grupo,
             a.matricula,
-            CONCAT(a.nombre, ' ', a.apellido_paterno, ' ', IFNULL(a.apellido_materno, '')) AS nombre_completo,
+            CONCAT(a.apellido_paterno, ' ', IFNULL(a.apellido_materno, ''), ' ', a.nombre) AS nombre_completo,
             COUNT(DISTINCT CASE WHEN asist.tipo = 'Entrada' THEN asist.fecha END) AS dias_asistidos
         FROM alumnos a
         LEFT JOIN asistencias asist 
@@ -92,7 +92,7 @@ try {
         $filtro_activo
         $where_grupo
         GROUP BY a.grupo, a.matricula, a.nombre, a.apellido_paterno, a.apellido_materno
-        ORDER BY a.grupo ASC, a.apellido_paterno ASC, a.nombre ASC
+        ORDER BY a.grupo ASC, a.apellido_paterno ASC, a.apellido_materno ASC, a.nombre ASC
     ";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
