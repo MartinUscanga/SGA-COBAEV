@@ -247,42 +247,40 @@ require_once 'includes/header.php';
 
                     <!-- Tabla estilo lista de asistencia del profesor -->
                     <div class="overflow-x-auto">
-                        <table class="w-full text-xs border-collapse">
+                        <table class="text-xs border-collapse">
                             <thead>
                                 <tr class="bg-zinc-50">
-                                    <th class="px-3 py-2 text-left font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[180px]">Alumno</th>
+                                    <th class="px-3 py-2 text-left font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 sticky left-0 bg-zinc-50 z-10 whitespace-nowrap">Alumno</th>
                                     <?php foreach ($dias_habiles_lista as $dia): ?>
-                                        <th class="px-0 py-2 text-center font-bold text-zinc-400 border-b border-zinc-200 min-w-[28px]">
+                                        <th class="px-1 py-2 text-center font-bold text-zinc-400 border-b border-zinc-200 w-7">
                                             <div class="text-[9px] leading-tight"><?= date('D', strtotime($dia)) ?></div>
                                             <div class="text-[10px] text-zinc-600 font-bold"><?= date('d', strtotime($dia)) ?></div>
                                         </th>
                                     <?php endforeach; ?>
-                                    <th class="px-3 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 min-w-[50px]">Total</th>
-                                    <th class="px-3 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 min-w-[45px]">%</th>
+                                    <th class="px-2 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 whitespace-nowrap">Total</th>
+                                    <th class="px-2 py-2 text-center font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200">%</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($data['alumnos'] as $idx => $alumno): ?>
                                 <tr class="<?= $idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50' ?> hover:bg-blue-50/30">
-                                    <td class="px-3 py-2 font-medium text-zinc-700 border-b border-zinc-100 sticky left-0 <?= $idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50' ?> z-10">
-                                        <div class="truncate max-w-[170px]" title="<?= htmlspecialchars($alumno['nombre']) ?>">
-                                            <?= htmlspecialchars($alumno['nombre']) ?>
-                                        </div>
+                                    <td class="px-3 py-2 font-medium text-zinc-700 border-b border-zinc-100 sticky left-0 <?= $idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50' ?> z-10 whitespace-nowrap">
+                                        <?= htmlspecialchars(mb_substr($alumno['nombre'], 0, 25)) ?><?= mb_strlen($alumno['nombre']) > 25 ? '...' : '' ?>
                                     </td>
                                     <?php foreach ($dias_habiles_lista as $dia): ?>
                                         <?php $asistio = in_array($dia, $alumno['fechas_asistio']); ?>
                                         <td class="px-0 py-2 text-center border-b border-zinc-100">
                                             <?php if ($asistio): ?>
-                                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold">&#10003;</span>
+                                                <span class="inline-block w-5 h-5 leading-5 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold text-center">&#10003;</span>
                                             <?php else: ?>
-                                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-50 text-red-300 text-[10px]">&bull;</span>
+                                                <span class="inline-block w-5 h-5 leading-5 rounded-full bg-red-50 text-red-300 text-[10px] text-center">&bull;</span>
                                             <?php endif; ?>
                                         </td>
                                     <?php endforeach; ?>
-                                    <td class="px-3 py-2 text-center border-b border-zinc-100 font-bold text-zinc-600">
+                                    <td class="px-2 py-2 text-center border-b border-zinc-100 font-bold text-zinc-600 whitespace-nowrap">
                                         <?= $alumno['dias_asistidos'] ?>/<?= $dias_habiles ?>
                                     </td>
-                                    <td class="px-3 py-2 text-center border-b border-zinc-100">
+                                    <td class="px-2 py-2 text-center border-b border-zinc-100 whitespace-nowrap">
                                         <?php
                                             $pct_al = $alumno['porcentaje'];
                                             $color_pct = 'text-zinc-500';
