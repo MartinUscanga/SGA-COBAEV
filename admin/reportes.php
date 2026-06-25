@@ -251,9 +251,12 @@ require_once 'includes/header.php';
                             <thead>
                                 <tr class="bg-zinc-50">
                                     <th class="px-3 py-2 text-left font-bold text-zinc-600 uppercase tracking-wide border-b border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[180px]">Alumno</th>
+                                    <?php 
+                                        $dias_es = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mié','Thu'=>'Jue','Fri'=>'Vie','Sat'=>'Sáb','Sun'=>'Dom'];
+                                    ?>
                                     <?php foreach ($dias_habiles_lista as $dia): ?>
                                         <th class="px-0 py-2 text-center font-bold text-zinc-400 border-b border-zinc-200 min-w-[28px]">
-                                            <div class="text-[9px] leading-tight"><?= date('D', strtotime($dia)) ?></div>
+                                            <div class="text-[9px] leading-tight"><?= $dias_es[date('D', strtotime($dia))] ?></div>
                                             <div class="text-[10px] text-zinc-600 font-bold"><?= date('d', strtotime($dia)) ?></div>
                                         </th>
                                     <?php endforeach; ?>
