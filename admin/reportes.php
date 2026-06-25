@@ -312,43 +312,127 @@ require_once 'includes/header.php';
             btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span>Generando...</span>';
             btn.disabled = true;
 
-            // Crear contenedor temporal para el PDF
+            const ALUMNOS_POR_PAGINA = 18;
             const container = document.createElement('div');
-            container.style.padding = '20px';
+            container.style.padding = '15px';
             container.style.background = 'white';
-            
-            // Título
-            container.innerHTML = `
-                <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #5c1931;padding-bottom:15px;">
-                    <h1 style="font-size:18px;font-weight:bold;color:#5c1931;margin:0;">SGA COBAEV - Reporte de Asistencia</h1>
-                    <p style="font-size:11px;color:#666;margin-top:5px;">
-                        Periodo: <?= date('d/m/Y', strtotime($fecha_inicio)) ?> al <?= date('d/m/Y', strtotime($fecha_fin)) ?> 
-                        &bull; Dias habiles: <?= $dias_habiles ?>
-                        &bull; Generado: ${new Date().toLocaleDateString('es-MX')}
-                    </p>
-                </div>
-            `;
+            container.style.fontFamily = 'Arial, sans-serif';
 
-            // Copiar las tablas de grupos
+            // Procesar cada grupo
             const grupos = document.querySelectorAll('[id^="grupo-"]');
             grupos.forEach(grupo => {
-                const clon = grupo.cloneNode(true);
-                clon.style.marginBottom = '20px';
-                clon.style.border = '1px solid #e4e4e7';
-                clon.style.borderRadius = '8px';
-                clon.style.overflow = 'hidden';
-                container.appendChild(clon);
+                const table = grupo.querySelector('table');
+                if (!table) return;
+
+                const thead = table.querySelector('thead');
+                const rows = Array.from(table.querySelectorAll('tbody tr'));
+                const header = grupo.querySelector('.px-6.py-4'); // Header del grupo
+                const theadHTML = thead ? thead.outerHTML : '';
+                
+                // Dividir alumnos en bloques
+                const totalPaginas = Math.ceil(rows.length / ALUMNOS_POR_PAGINA);
+                
+                for (let pag = 0; pag < totalPaginas; pag++) {
+                    const bloque = document.createElement('div');
+                    bloque.style.marginBottom = '10px';
+                    bloque.style.border = '1px solid #e4e4e7';
+                    bloque.style.borderRadius = '6px';
+                    bloque.style.overflow = 'hidden';
+                    
+                    // Si es nueva página (no la primera), agregar page-break
+                    if (pag > 0) {
+                        bloque.style.pageBreakBefore = 'always';
+                    }
+
+                    // Header del grupo (repetir en cada página)
+                    const headerClon = header ? header.cloneNode(true) : null;
+                    if (headerClon) {
+                        headerClon.style.padding = '10px 15px';
+                        headerClon.style.borderBottom = '1px solid #e4e4e7';
+                        headerClon.style.background = '#fafafa';
+                        if (totalPaginas > 1) {
+                            const paginaInfo = document.createElement('span');
+                            paginaInfo.style.fontSize = '9px';
+                            paginaInfo.style.color = '#999';
+                            paginaInfo.style.marginLeft = '10px';
+                            paginaInfo.textContent = `(Pag ${pag + 1}/${totalPaginas})`;
+                            headerClon.querySelector('div')?.appendChild(paginaInfo);
+                        }
+                        bloque.appendChild(headerClon);
+                    }
+
+                    // Tabla con encabezado + filas del bloque
+                    const tablaPag = document.createElement('table');
+                    tablaPag.style.width = '100%';
+                    tablaPag.style.borderCollapse = 'collapse';
+                    tablaPag.style.fontSize = '8px';
+                    tablaPag.innerHTML = theadHTML;
+                    
+                    // Estilos al thead
+                    tablaPag.querySelectorAll('thead th').forEach(th => {
+                        th.style.background = '#f4f4f5';
+                        th.style.borderBottom = '1px solid #e4e4e7';
+                        th.style.padding = '4px 2px';
+                        th.style.fontSize = '7px';
+                        th.style.fontWeight = 'bold';
+                        th.style.textAlign = 'center';
+                    });
+                    const firstTh = tablaPag.querySelector('thead th');
+                    if (firstTh) firstTh.style.textAlign = 'left';
+
+                    // Body con filas de esta página
+                    const tbody = document.createElement('tbody');
+                    const inicio = pag * ALUMNOS_POR_PAGINA;
+                    const fin = Math.min(inicio + ALUMNOS_POR_PAGINA, rows.length);
+                    
+                    for (let i = inicio; i < fin; i++) {
+                        const fila = rows[i].cloneNode(true);
+                        fila.querySelectorAll('td').forEach(td => {
+                            td.style.borderBottom = '1px solid #f4f4f5';
+                            td.style.padding = '3px 1px';
+                            td.style.textAlign = 'center';
+                            td.style.fontSize = '8px';
+                            td.style.position = 'static';
+                        });
+                        const firstTd = fila.querySelector('td');
+                        if (firstTd) {
+                            firstTd.style.textAlign = 'left';
+                            firstTd.style.paddingLeft = '4px';
+                            firstTd.style.fontWeight = '500';
+                        }
+                        tbody.appendChild(fila);
+                    }
+                    tablaPag.appendChild(tbody);
+                    bloque.appendChild(tablaPag);
+                    container.appendChild(bloque);
+                }
             });
+
+            // Agregar título al inicio
+            const titulo = document.createElement('div');
+            titulo.style.textAlign = 'center';
+            titulo.style.marginBottom = '15px';
+            titulo.style.borderBottom = '2px solid #5c1931';
+            titulo.style.paddingBottom = '10px';
+            titulo.innerHTML = `
+                <h1 style="font-size:16px;font-weight:bold;color:#5c1931;margin:0;">SGA COBAEV - Reporte de Asistencia</h1>
+                <p style="font-size:10px;color:#666;margin-top:4px;">
+                    Periodo: <?= date('d/m/Y', strtotime($fecha_inicio)) ?> al <?= date('d/m/Y', strtotime($fecha_fin)) ?> 
+                    &bull; Dias habiles: <?= $dias_habiles ?>
+                    &bull; Generado: ${new Date().toLocaleDateString('es-MX')}
+                </p>
+            `;
+            container.insertBefore(titulo, container.firstChild);
 
             document.body.appendChild(container);
 
             const opt = {
-                margin: [10, 5, 10, 5],
+                margin: [8, 4, 8, 4],
                 filename: 'Reporte_Asistencia_<?= htmlspecialchars($grupo_filtro ?: "Todos") ?>_<?= date("Y-m-d") ?>.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
+                image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             html2pdf().set(opt).from(container).save().then(() => {
