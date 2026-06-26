@@ -8,6 +8,7 @@
  * 
  * Soporta filtros: categoria, no_leidos, pagina, limite
  * Incluye estado de lectura individual por tutor (tabla avisos_leidos si existe)
+ * Soporta avisos por grupo (destinatario = 'grupo:NOMBRE')
  */
 
 require_once '../includes/session_padres.php';
@@ -109,6 +110,19 @@ try {
     $tiene_columnas_nuevas = columnasNuevasExisten($pdo);
     $tiene_avisos_leidos = tablaAvisosLeidosExiste($pdo);
 
+    // Obtener el grupo del alumno para filtrar avisos grupales
+    $grupo_alumno = '';
+    try {
+        $stmt_grupo = $pdo->prepare("SELECT grupo FROM alumnos WHERE matricula = :matricula");
+        $stmt_grupo->execute(['matricula' => $matricula]);
+        $row_grupo = $stmt_grupo->fetch(PDO::FETCH_ASSOC);
+        if ($row_grupo) {
+            $grupo_alumno = $row_grupo['grupo'] ?? '';
+        }
+    } catch (PDOException $e) {
+        // Si falla, continuar sin filtro de grupo
+    }
+
     // Iconos por categoria
     $iconos = [
         'institucional' => "\xF0\x9F\x8F\xAB",
@@ -120,7 +134,6 @@ try {
 
     if (!$tiene_columnas_nuevas) {
         // === MODO LEGACY: tabla sin migracion ===
-        // Estructura original: id_aviso, titulo, mensaje, fecha_envio, destinatario, leido
         
         // Crear placeholders para todas las matrículas
         $matricula_placeholders = [];
@@ -132,10 +145,17 @@ try {
         }
         $in_clause = implode(',', $matricula_placeholders);
 
+        // En modo legacy también soportar grupo si existe la columna destinatario
+        $grupo_condition = '';
+        if (!empty($grupo_alumno)) {
+            $grupo_condition = " OR destinatario = :grupo_dest";
+            $matricula_params['grupo_dest'] = 'grupo:' . $grupo_alumno;
+        }
+
         $sql = "SELECT id_aviso, titulo, mensaje, fecha_envio, destinatario 
                 FROM avisos 
                 WHERE leido = 0 
-                AND (destinatario = 'todos' OR destinatario IN ($in_clause)) 
+                AND (destinatario = 'todos' OR destinatario IN ($in_clause)$grupo_condition) 
                 ORDER BY fecha_envio DESC 
                 LIMIT " . intval($limite);
 
@@ -146,12 +166,12 @@ try {
         // Contar total
         $sql_count = "SELECT COUNT(*) as total FROM avisos 
                       WHERE leido = 0 
-                      AND (destinatario = 'todos' OR destinatario IN ($in_clause))";
+                      AND (destinatario = 'todos' OR destinatario IN ($in_clause)$grupo_condition)";
         $stmt_count = $pdo->prepare($sql_count);
         $stmt_count->execute($matricula_params);
         $total = intval($stmt_count->fetch(PDO::FETCH_ASSOC)['total']);
 
-        // Formatear avisos con estructura compatible con la API nueva
+        // Formatear avisos
         $avisos = [];
         foreach ($avisos_raw as $aviso) {
             $preview = '';
@@ -194,7 +214,6 @@ try {
     } else {
         // === MODO MIGRADO: tabla con columnas nuevas ===
 
-        // Construir condiciones WHERE
         // Crear placeholders para todas las matrículas
         $matricula_placeholders = [];
         $matricula_params = [];
@@ -205,9 +224,16 @@ try {
         }
         $in_clause = implode(',', $matricula_placeholders);
 
+        // Condición de grupo
+        $grupo_condition = '';
+        if (!empty($grupo_alumno)) {
+            $grupo_condition = " OR a.destinatario = :grupo_dest";
+            $matricula_params['grupo_dest'] = 'grupo:' . $grupo_alumno;
+        }
+
         $where = "WHERE a.activo = 1 
                   AND (a.fecha_publicacion IS NULL OR a.fecha_publicacion <= NOW()) 
-                  AND (a.destinatario = 'todos' OR a.destinatario IN ($in_clause))";
+                  AND (a.destinatario = 'todos' OR a.destinatario IN ($in_clause)$grupo_condition)";
         $params = $matricula_params;
 
         if (!empty($categoria) && in_array($categoria, ['institucional','academico','emergencia','pagos','cultural'])) {
@@ -216,7 +242,6 @@ try {
         }
 
         if ($tiene_avisos_leidos) {
-            // Con tabla avisos_leidos: JOIN para estado de lectura
             if ($no_leidos) {
                 $where .= " AND al.id IS NULL";
             }
@@ -246,21 +271,22 @@ try {
             $total = intval($stmt_count->fetch(PDO::FETCH_ASSOC)['total']);
 
             // Contar no leidos
+            $params_nl = $matricula_params;
+            $params_nl['matricula_tutor'] = $matricula_tutor;
+            $grupo_cond_nl = !empty($grupo_alumno) ? " OR a.destinatario = :grupo_dest" : "";
             $sql_no_leidos = "SELECT COUNT(*) as no_leidos
                               FROM avisos a
                               LEFT JOIN avisos_leidos al ON al.id_aviso = a.id_aviso AND al.matricula_tutor = :matricula_tutor
                               WHERE a.activo = 1 
                               AND (a.fecha_publicacion IS NULL OR a.fecha_publicacion <= NOW()) 
-                              AND (a.destinatario = 'todos' OR a.destinatario IN ($in_clause))
+                              AND (a.destinatario = 'todos' OR a.destinatario IN ($in_clause)$grupo_cond_nl)
                               AND al.id IS NULL";
-            $params_nl = $matricula_params;
-            $params_nl['matricula_tutor'] = $matricula_tutor;
             $stmt_nl = $pdo->prepare($sql_no_leidos);
             $stmt_nl->execute($params_nl);
             $total_no_leidos = intval($stmt_nl->fetch(PDO::FETCH_ASSOC)['no_leidos']);
 
         } else {
-            // Sin tabla avisos_leidos: no se puede trackear lectura individual
+            // Sin tabla avisos_leidos
             $sql = "SELECT a.id_aviso, a.titulo, a.contenido, a.mensaje, a.categoria, a.prioridad, 
                            a.archivo_adjunto, a.fecha_publicacion, a.fecha_envio, a.destinatario,
                            0 as leido
@@ -273,7 +299,6 @@ try {
             $stmt->execute($params);
             $avisos_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Contar total
             $sql_count = "SELECT COUNT(*) as total FROM avisos a $where";
             $stmt_count = $pdo->prepare($sql_count);
             $stmt_count->execute($params);
