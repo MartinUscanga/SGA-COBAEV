@@ -119,6 +119,125 @@ function enviarAlertaFirebase($token_padre, $mensaje_texto) {
 }
 
 /**
+ * Envia una notificacion push rica para avisos del sistema
+ * 
+ * @param string $token_padre Token FCM del dispositivo del tutor
+ * @param string $titulo Titulo del aviso
+ * @param string $preview Preview del contenido (primeros chars)
+ * @param int $id_aviso ID del aviso para deep linking
+ * @param string $categoria Categoria del aviso
+ * @param string $prioridad Prioridad: normal, importante, urgente
+ * @return string JSON con resultado de la operacion
+ */
+function enviarAvisoRicoFirebase($token_padre, $titulo, $preview, $id_aviso, $categoria, $prioridad) {
+    // 1. Obtener credenciales del archivo service-account.json
+    $rutaCredenciales = __DIR__ . '/config/service-account.json';
+    
+    if (!file_exists($rutaCredenciales)) {
+        return json_encode([
+            'status' => 'error',
+            'message' => 'Archivo de credenciales no encontrado'
+        ]);
+    }
+    
+    $jsonKey = json_decode(file_get_contents($rutaCredenciales), true);
+    
+    if (!$jsonKey) {
+        return json_encode([
+            'status' => 'error',
+            'message' => 'Error al leer credenciales de Firebase'
+        ]);
+    }
+    
+    // 2. Configurar autenticacion OAuth2
+    $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
+    $credentials = new ServiceAccountCredentials($scopes, $jsonKey);
+    
+    try {
+        $accessToken = $credentials->fetchAuthToken(HttpHandlerFactory::build())['access_token'];
+    } catch (Exception $e) {
+        return json_encode([
+            'status' => 'error',
+            'message' => 'Error al obtener token de acceso',
+            'error' => $e->getMessage()
+        ]);
+    }
+
+    $projectId = $jsonKey['project_id'];
+    $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
+
+    // URL de destino al detalle del aviso
+    $click_action = '/avisos_detalle.php?id=' . intval($id_aviso);
+
+    // Determinar prioridad Android
+    $androidPriority = ($prioridad === 'urgente') ? 'high' : 'normal';
+
+    // 3. Preparar payload data-only
+    $mensaje = [
+        'message' => [
+            'token' => $token_padre,
+            'data' => [
+                'title' => $titulo,
+                'body' => $preview,
+                'tipo' => 'aviso',
+                'id_aviso' => strval($id_aviso),
+                'categoria' => $categoria,
+                'prioridad' => $prioridad,
+                'click_action' => $click_action,
+                'timestamp' => date('Y-m-d H:i:s'),
+                'icon' => '/logo.png'
+            ],
+            'android' => [
+                'priority' => $androidPriority
+            ],
+            'webpush' => [
+                'headers' => [
+                    'Urgency' => ($prioridad === 'urgente') ? 'high' : 'normal',
+                    'TTL' => '86400'
+                ]
+            ],
+            'fcm_options' => [
+                'analytics_label' => 'sga_aviso_' . $categoria
+            ]
+        ]
+    ];
+
+    // 4. Ejecutar peticion cURL
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($mensaje));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+    $respuesta = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    // 5. Procesar respuesta
+    if ($httpCode !== 200) {
+        return json_encode([
+            'status' => 'error',
+            'code' => $httpCode,
+            'message' => 'Error al enviar notificacion de aviso',
+            'response' => $respuesta,
+            'curl_error' => $error
+        ]);
+    }
+
+    return json_encode([
+        'status' => 'success',
+        'code' => $httpCode,
+        'message' => 'Notificacion de aviso enviada correctamente',
+        'response' => json_decode($respuesta, true)
+    ]);
+}
+
+/**
  * Notificar a los tutores cuando se registra una asistencia
  * 
  * @param string $matricula_alumno Matrícula del alumno

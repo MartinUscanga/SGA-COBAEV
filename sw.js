@@ -48,13 +48,42 @@ messaging.onBackgroundMessage((payload) => {
     const title = payload.data?.title || payload.notification?.title || "Alerta COBAEV";
     const body = payload.data?.body || payload.notification?.body || "Registro de acceso";
     const icon = payload.data?.icon || '/logo.png';
+    const clickAction = payload.data?.click_action || '';
 
     self.registration.showNotification(title, {
         body: body,
         icon: icon,
-        tag: 'cobaev-bg',
+        tag: 'cobaev-' + (payload.data?.tipo || 'bg'),
         renotify: true,
         requireInteraction: true,
-        vibrate: [200, 100, 200]
+        vibrate: [200, 100, 200],
+        data: {
+            click_action: clickAction,
+            id_aviso: payload.data?.id_aviso || '',
+            tipo: payload.data?.tipo || ''
+        }
     });
+});
+
+// Manejador de click en notificaciones
+self.addEventListener('notificationclick', (event) => {
+    console.log('[SW] Notification click:', event.notification.data);
+    event.notification.close();
+
+    const urlToOpen = event.notification.data?.click_action || '/padres.php';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // Buscar si ya hay una ventana abierta con esa URL
+            for (const client of clientList) {
+                if (client.url.includes(urlToOpen) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Si no hay ventana abierta, abrir una nueva
+            if (clients.openWindow) {
+                return clients.openWindow(urlToOpen);
+            }
+        })
+    );
 });
