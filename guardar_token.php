@@ -14,10 +14,12 @@
  */
 
 header('Content-Type: application/json');
-session_start();
+
+// Usar el sistema centralizado de sesiones (mismo nombre de sesión que el portal de padres)
+require_once 'includes/session_padres.php';
 
 // Verificar que el tutor este autenticado
-if (!isset($_SESSION['tutor_autenticado']) || $_SESSION['tutor_autenticado'] !== true) {
+if (!hayTutorAutenticado()) {
     echo json_encode([
         'success' => false,
         'message' => 'No autenticado. Inicie sesion primero.'

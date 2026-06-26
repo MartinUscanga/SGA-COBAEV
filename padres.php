@@ -702,10 +702,12 @@ foreach ($asistencias as $reg) {
                 const response = await fetch('api/obtener_avisos.php?limite=3');
                 const data = await response.json();
 
-                if (data.success && data.avisos) {
-                    actualizarBadge(data.estadisticas.no_leidos);
+                if (data.success && data.avisos && data.avisos.length > 0) {
+                    const noLeidos = data.estadisticas ? data.estadisticas.no_leidos : data.avisos.length;
+                    actualizarBadge(noLeidos);
                     renderAvisos(data.avisos);
                 } else {
+                    actualizarBadge(0);
                     renderAvisosVacio();
                 }
             } catch (error) {
