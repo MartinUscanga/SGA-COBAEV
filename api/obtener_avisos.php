@@ -25,7 +25,20 @@ require_once '../conexion.php';
 $matricula = $_SESSION['alumno_matricula'] ?? '';
 $matricula_tutor = $_SESSION['tutor_matricula'] ?? $_SESSION['alumno_matricula'] ?? '';
 
-if (empty($matricula)) {
+// Obtener TODAS las matriculas vinculadas al tutor (para multi-alumno)
+$todas_matriculas = [];
+if (!empty($matricula)) {
+    $todas_matriculas[] = $matricula;
+}
+if (isset($_SESSION['alumnos']) && is_array($_SESSION['alumnos'])) {
+    foreach ($_SESSION['alumnos'] as $alumno) {
+        if (!empty($alumno['matricula']) && !in_array($alumno['matricula'], $todas_matriculas)) {
+            $todas_matriculas[] = $alumno['matricula'];
+        }
+    }
+}
+
+if (empty($matricula) && empty($todas_matriculas)) {
     http_response_code(400);
     echo json_encode(['error' => 'Matricula no disponible']);
     exit;
@@ -108,23 +121,34 @@ try {
     if (!$tiene_columnas_nuevas) {
         // === MODO LEGACY: tabla sin migracion ===
         // Estructura original: id_aviso, titulo, mensaje, fecha_envio, destinatario, leido
+        
+        // Crear placeholders para todas las matrículas
+        $matricula_placeholders = [];
+        $matricula_params = [];
+        foreach ($todas_matriculas as $i => $mat) {
+            $key = "mat_$i";
+            $matricula_placeholders[] = ":$key";
+            $matricula_params[$key] = $mat;
+        }
+        $in_clause = implode(',', $matricula_placeholders);
+
         $sql = "SELECT id_aviso, titulo, mensaje, fecha_envio, destinatario 
                 FROM avisos 
                 WHERE leido = 0 
-                AND (destinatario = 'todos' OR destinatario = :matricula) 
+                AND (destinatario = 'todos' OR destinatario IN ($in_clause)) 
                 ORDER BY fecha_envio DESC 
                 LIMIT " . intval($limite);
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(['matricula' => $matricula]);
+        $stmt->execute($matricula_params);
         $avisos_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Contar total
         $sql_count = "SELECT COUNT(*) as total FROM avisos 
                       WHERE leido = 0 
-                      AND (destinatario = 'todos' OR destinatario = :matricula)";
+                      AND (destinatario = 'todos' OR destinatario IN ($in_clause))";
         $stmt_count = $pdo->prepare($sql_count);
-        $stmt_count->execute(['matricula' => $matricula]);
+        $stmt_count->execute($matricula_params);
         $total = intval($stmt_count->fetch(PDO::FETCH_ASSOC)['total']);
 
         // Formatear avisos con estructura compatible con la API nueva
@@ -171,10 +195,20 @@ try {
         // === MODO MIGRADO: tabla con columnas nuevas ===
 
         // Construir condiciones WHERE
+        // Crear placeholders para todas las matrículas
+        $matricula_placeholders = [];
+        $matricula_params = [];
+        foreach ($todas_matriculas as $i => $mat) {
+            $key = "mat_$i";
+            $matricula_placeholders[] = ":$key";
+            $matricula_params[$key] = $mat;
+        }
+        $in_clause = implode(',', $matricula_placeholders);
+
         $where = "WHERE a.activo = 1 
                   AND (a.fecha_publicacion IS NULL OR a.fecha_publicacion <= NOW()) 
-                  AND (a.destinatario = 'todos' OR a.destinatario = :matricula)";
-        $params = ['matricula' => $matricula];
+                  AND (a.destinatario = 'todos' OR a.destinatario IN ($in_clause))";
+        $params = $matricula_params;
 
         if (!empty($categoria) && in_array($categoria, ['institucional','academico','emergencia','pagos','cultural'])) {
             $where .= " AND a.categoria = :categoria";
@@ -187,7 +221,7 @@ try {
                 $where .= " AND al.id IS NULL";
             }
 
-            $sql = "SELECT a.id_aviso, a.titulo, a.contenido, a.categoria, a.prioridad, 
+            $sql = "SELECT a.id_aviso, a.titulo, a.contenido, a.mensaje, a.categoria, a.prioridad, 
                            a.archivo_adjunto, a.fecha_publicacion, a.fecha_envio, a.destinatario,
                            CASE WHEN al.id IS NOT NULL THEN 1 ELSE 0 END as leido
                     FROM avisos a
@@ -217,15 +251,17 @@ try {
                               LEFT JOIN avisos_leidos al ON al.id_aviso = a.id_aviso AND al.matricula_tutor = :matricula_tutor
                               WHERE a.activo = 1 
                               AND (a.fecha_publicacion IS NULL OR a.fecha_publicacion <= NOW()) 
-                              AND (a.destinatario = 'todos' OR a.destinatario = :matricula)
+                              AND (a.destinatario = 'todos' OR a.destinatario IN ($in_clause))
                               AND al.id IS NULL";
+            $params_nl = $matricula_params;
+            $params_nl['matricula_tutor'] = $matricula_tutor;
             $stmt_nl = $pdo->prepare($sql_no_leidos);
-            $stmt_nl->execute(['matricula_tutor' => $matricula_tutor, 'matricula' => $matricula]);
+            $stmt_nl->execute($params_nl);
             $total_no_leidos = intval($stmt_nl->fetch(PDO::FETCH_ASSOC)['no_leidos']);
 
         } else {
             // Sin tabla avisos_leidos: no se puede trackear lectura individual
-            $sql = "SELECT a.id_aviso, a.titulo, a.contenido, a.categoria, a.prioridad, 
+            $sql = "SELECT a.id_aviso, a.titulo, a.contenido, a.mensaje, a.categoria, a.prioridad, 
                            a.archivo_adjunto, a.fecha_publicacion, a.fecha_envio, a.destinatario,
                            0 as leido
                     FROM avisos a
@@ -251,7 +287,8 @@ try {
         foreach ($avisos_raw as $aviso) {
             $fecha_mostrar = $aviso['fecha_publicacion'] ?? $aviso['fecha_envio'] ?? null;
 
-            $contenido = $aviso['contenido'] ?? '';
+            // Usar contenido, con fallback a mensaje si contenido es NULL/vacío
+            $contenido = !empty($aviso['contenido']) ? $aviso['contenido'] : ($aviso['mensaje'] ?? '');
             $preview = mb_strlen($contenido) > 150 ? mb_substr($contenido, 0, 150) . '...' : $contenido;
 
             $cat = $aviso['categoria'] ?? 'institucional';
