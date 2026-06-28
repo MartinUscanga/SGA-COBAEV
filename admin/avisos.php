@@ -1,18 +1,13 @@
 <?php
 /**
- * Panel de Administracion - Avisos a Padres
+ * Panel de Administracion - Avisos a Padres (Mejorado)
  * SGA COBAEV
  * 
- * SQL para crear la tabla:
- * CREATE TABLE avisos (
- *   id_aviso INT AUTO_INCREMENT PRIMARY KEY,
- *   titulo VARCHAR(255) NOT NULL,
- *   mensaje TEXT NOT NULL,
- *   destinatario VARCHAR(50) NOT NULL DEFAULT 'todos',
- *   creado_por VARCHAR(100) NOT NULL,
- *   fecha_envio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
- *   leido TINYINT NOT NULL DEFAULT 0
- * ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ * Soporta:
+ * - Categorias: institucional, academico, emergencia, pagos, cultural
+ * - Prioridades: normal, importante, urgente
+ * - Destinatarios: todos (masivo), por grupo, individual (matricula)
+ * - Notificaciones push ricas via FCM
  */
 require_once 'includes/auth.php';
 
@@ -26,6 +21,15 @@ if (empty($_SESSION['csrf_token'])) {
 $mensaje_exito = '';
 $mensaje_error = '';
 
+// Obtener grupos disponibles para el selector
+$grupos_disponibles = [];
+try {
+    $stmt_grupos = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE activo = 1 ORDER BY grupo");
+    $grupos_disponibles = $stmt_grupos->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    error_log('SGA Error [avisos grupos]: ' . $e->getMessage());
+}
+
 // Procesar envio de aviso
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     // Validar CSRF
@@ -37,45 +41,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         if ($accion === 'crear_aviso') {
             $titulo = trim($_POST['titulo'] ?? '');
             $mensaje = trim($_POST['mensaje'] ?? '');
-            $destinatario = trim($_POST['destinatario'] ?? 'todos');
+            $categoria = trim($_POST['categoria'] ?? 'institucional');
+            $prioridad = trim($_POST['prioridad'] ?? 'normal');
+            $tipo_destinatario = trim($_POST['tipo_destinatario'] ?? 'todos');
+            $grupo_seleccionado = trim($_POST['grupo_seleccionado'] ?? '');
+            $matricula_especifica = trim($_POST['matricula_especifica'] ?? '');
+
+            // Validar categoria
+            $categorias_validas = ['institucional', 'academico', 'emergencia', 'pagos', 'cultural'];
+            if (!in_array($categoria, $categorias_validas)) {
+                $categoria = 'institucional';
+            }
+
+            // Validar prioridad
+            $prioridades_validas = ['normal', 'importante', 'urgente'];
+            if (!in_array($prioridad, $prioridades_validas)) {
+                $prioridad = 'normal';
+            }
+
+            // Determinar destinatario final
+            $destinatario = 'todos';
+            if ($tipo_destinatario === 'grupo') {
+                if (empty($grupo_seleccionado)) {
+                    $mensaje_error = 'Debe seleccionar un grupo.';
+                } else {
+                    $destinatario = 'grupo:' . $grupo_seleccionado;
+                }
+            } elseif ($tipo_destinatario === 'individual') {
+                if (empty($matricula_especifica)) {
+                    $mensaje_error = 'Debe ingresar una matricula.';
+                } elseif (!preg_match('/^[A-Z]\d{7}$/i', $matricula_especifica)) {
+                    $mensaje_error = 'La matricula debe tener formato valido (letra + 7 digitos).';
+                } else {
+                    $destinatario = strtoupper($matricula_especifica);
+                }
+            }
 
             if (empty($titulo) || empty($mensaje)) {
                 $mensaje_error = 'El titulo y mensaje son obligatorios.';
-            } elseif ($destinatario !== 'todos' && !preg_match('/^[A-Z]\d{7}$/i', $destinatario)) {
-                $mensaje_error = 'El destinatario debe ser "todos" o una matricula valida (letra + 7 digitos).';
-            } else {
-                // Validar que la matricula existe si no es "todos"
-                if ($destinatario !== 'todos') {
-                    $stmt_check = $pdo->prepare("SELECT COUNT(*) as existe FROM alumnos WHERE matricula = :mat");
-                    $stmt_check->execute(['mat' => strtoupper($destinatario)]);
-                    if ($stmt_check->fetch()['existe'] == 0) {
-                        $mensaje_error = 'La matricula especificada no existe en el sistema.';
-                    }
-                    $destinatario = strtoupper($destinatario);
-                }
+            }
 
-                if (empty($mensaje_error)) {
+            // Validar matricula individual existe
+            if (empty($mensaje_error) && $tipo_destinatario === 'individual') {
+                $stmt_check = $pdo->prepare("SELECT COUNT(*) as existe FROM alumnos WHERE matricula = :mat");
+                $stmt_check->execute(['mat' => $destinatario]);
+                if ($stmt_check->fetch()['existe'] == 0) {
+                    $mensaje_error = 'La matricula especificada no existe en el sistema.';
+                }
+            }
+
+            if (empty($mensaje_error)) {
                 try {
-                    // Guardar aviso en BD
-                    $stmt = $pdo->prepare("INSERT INTO avisos (titulo, mensaje, destinatario, creado_por, fecha_envio) VALUES (:titulo, :mensaje, :destinatario, :creado_por, NOW())");
+                    // Guardar aviso en BD con campos mejorados
+                    $stmt = $pdo->prepare("INSERT INTO avisos (titulo, mensaje, contenido, categoria, prioridad, destinatario, creado_por, fecha_envio, fecha_publicacion) VALUES (:titulo, :mensaje, :contenido, :categoria, :prioridad, :destinatario, :creado_por, NOW(), NOW())");
                     $stmt->execute([
                         'titulo' => $titulo,
                         'mensaje' => $mensaje,
+                        'contenido' => $mensaje,
+                        'categoria' => $categoria,
+                        'prioridad' => $prioridad,
                         'destinatario' => $destinatario,
                         'creado_por' => $_SESSION['username'] ?? $_SESSION['usuario_nombre'] ?? 'admin'
                     ]);
 
-                    // Enviar notificación push a los padres afectados
+                    $id_aviso = $pdo->lastInsertId();
+
+                    // Enviar notificacion push a los padres afectados
                     require_once '../enviar_notificacion.php';
                     
                     $tokens_enviados = 0;
+                    $preview = mb_substr($mensaje, 0, 100);
                     
-                    if ($destinatario === 'todos') {
+                    if ($tipo_destinatario === 'todos') {
                         // Obtener TODOS los tokens activos
                         $stmt_tokens = $pdo->query("SELECT DISTINCT token_fcm FROM dispositivos_padres");
                         $tokens = $stmt_tokens->fetchAll();
+                    } elseif ($tipo_destinatario === 'grupo') {
+                        // Obtener matriculas del grupo y luego sus tokens
+                        $stmt_matriculas = $pdo->prepare("SELECT matricula FROM alumnos WHERE grupo = :grupo AND activo = 1");
+                        $stmt_matriculas->execute(['grupo' => $grupo_seleccionado]);
+                        $matriculas_grupo = $stmt_matriculas->fetchAll(PDO::FETCH_COLUMN);
+                        
+                        $tokens = [];
+                        if (!empty($matriculas_grupo)) {
+                            $placeholders = implode(',', array_fill(0, count($matriculas_grupo), '?'));
+                            $stmt_tokens = $pdo->prepare("SELECT DISTINCT token_fcm FROM dispositivos_padres WHERE matricula_alumno IN ($placeholders)");
+                            $stmt_tokens->execute($matriculas_grupo);
+                            $tokens = $stmt_tokens->fetchAll();
+                        }
                     } else {
-                        // Obtener token de la matrícula específica
+                        // Individual - obtener token de la matricula especifica
                         $stmt_tokens = $pdo->prepare("SELECT token_fcm FROM dispositivos_padres WHERE matricula_alumno = :matricula");
                         $stmt_tokens->execute(['matricula' => $destinatario]);
                         $tokens = $stmt_tokens->fetchAll();
@@ -83,17 +138,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
                     foreach ($tokens as $row) {
                         if (!empty($row['token_fcm'])) {
-                            enviarAlertaFirebase($row['token_fcm'], "Tienes un nuevo aviso, revisa tu bandeja.");
+                            if (function_exists('enviarAvisoRicoFirebase')) {
+                                enviarAvisoRicoFirebase($row['token_fcm'], $titulo, $preview, $id_aviso, $categoria, $prioridad);
+                            } else {
+                                enviarAlertaFirebase($row['token_fcm'], "Nuevo aviso: " . $titulo);
+                            }
                             $tokens_enviados++;
                         }
                     }
 
-                    $mensaje_exito = "Aviso enviado correctamente. Notificación push enviada a {$tokens_enviados} dispositivo(s).";
+                    $mensaje_exito = "Aviso enviado correctamente. Notificacion push enviada a {$tokens_enviados} dispositivo(s).";
                 } catch (PDOException $e) {
                     error_log('SGA Error [avisos crear]: ' . $e->getMessage());
                     $mensaje_error = 'Error interno del servidor. Intente de nuevo mas tarde.';
                 }
-                } // end empty($mensaje_error)
             }
         } elseif ($accion === 'eliminar_aviso') {
             $id_aviso = intval($_POST['id_aviso'] ?? 0);
@@ -158,12 +216,13 @@ require_once 'includes/header.php';
             <div class="bg-white rounded-xl border border-zinc-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-zinc-100">
                     <h3 class="font-serif-elegant text-lg font-bold text-vino">Enviar Nuevo Aviso</h3>
-                    <p class="text-xs text-zinc-400 mt-0.5">Los avisos se mostraran en el portal de padres</p>
+                    <p class="text-xs text-zinc-400 mt-0.5">Los avisos se mostraran en el portal de padres con notificacion push</p>
                 </div>
-                <form method="POST" class="p-6 space-y-4">
+                <form method="POST" id="form-aviso" class="p-6 space-y-4">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="accion" value="crear_aviso">
 
+                    <!-- Fila 1: Titulo y Destinatario -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Titulo del aviso</label>
@@ -171,16 +230,52 @@ require_once 'includes/header.php';
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Destinatario</label>
-                            <div class="flex items-center space-x-3">
-                                <select name="destinatario" id="select-destinatario" onchange="toggleMatricula()" class="flex-1 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
-                                    <option value="todos">Todos los padres</option>
-                                    <option value="matricula">Matricula especifica</option>
-                                </select>
-                                <input type="text" name="matricula_especifica" id="input-matricula" placeholder="Ej: B2024001" maxlength="50" class="hidden flex-1 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-vino transition-colors">
-                            </div>
+                            <select name="tipo_destinatario" id="select-tipo-destinatario" onchange="toggleDestinatario()" class="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
+                                <option value="todos">Todos los padres (masivo)</option>
+                                <option value="grupo">Por grupo</option>
+                                <option value="individual">Matricula individual</option>
+                            </select>
                         </div>
                     </div>
 
+                    <!-- Fila 2: Selector de grupo o matricula (condicional) -->
+                    <div id="campo-grupo" class="hidden">
+                        <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Seleccionar Grupo</label>
+                        <select name="grupo_seleccionado" id="select-grupo" class="w-full md:w-1/2 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
+                            <option value="">-- Seleccione un grupo --</option>
+                            <?php foreach ($grupos_disponibles as $grupo): ?>
+                                <option value="<?= htmlspecialchars($grupo) ?>"><?= htmlspecialchars($grupo) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div id="campo-matricula" class="hidden">
+                        <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Matricula del alumno</label>
+                        <input type="text" name="matricula_especifica" id="input-matricula" placeholder="Ej: B2024001" maxlength="50" class="w-full md:w-1/2 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-vino transition-colors">
+                    </div>
+
+                    <!-- Fila 3: Categoria y Prioridad -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Categoria</label>
+                            <select name="categoria" class="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
+                                <option value="institucional">&#127963; Institucional</option>
+                                <option value="academico">&#128218; Academico</option>
+                                <option value="emergencia">&#128680; Emergencia</option>
+                                <option value="pagos">&#128176; Pagos</option>
+                                <option value="cultural">&#127917; Cultural</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Prioridad</label>
+                            <select name="prioridad" class="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
+                                <option value="normal">Normal</option>
+                                <option value="importante">&#9888;&#65039; Importante</option>
+                                <option value="urgente">&#128308; Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fila 4: Mensaje -->
                     <div>
                         <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Mensaje</label>
                         <textarea name="mensaje" required rows="4" maxlength="2000" placeholder="Escribe el contenido del aviso..." class="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors resize-none"></textarea>
@@ -219,6 +314,8 @@ require_once 'includes/header.php';
                                 <tr>
                                     <th class="px-6 py-3 text-left">Titulo</th>
                                     <th class="px-6 py-3 text-left">Destinatario</th>
+                                    <th class="px-6 py-3 text-center">Categoria</th>
+                                    <th class="px-6 py-3 text-center">Prioridad</th>
                                     <th class="px-6 py-3 text-center">Estado</th>
                                     <th class="px-6 py-3 text-left">Enviado por</th>
                                     <th class="px-6 py-3 text-left">Fecha</th>
@@ -235,12 +332,40 @@ require_once 'includes/header.php';
                                         <td class="px-6 py-3">
                                             <?php if ($aviso['destinatario'] === 'todos'): ?>
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Todos</span>
+                                            <?php elseif (strpos($aviso['destinatario'], 'grupo:') === 0): ?>
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">Grupo <?= htmlspecialchars(substr($aviso['destinatario'], 6)) ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 font-mono"><?= htmlspecialchars($aviso['destinatario']) ?></span>
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-3 text-center">
-                                            <?php if ($aviso['leido']): ?>
+                                            <?php
+                                            $cat = $aviso['categoria'] ?? 'institucional';
+                                            $cat_colors = [
+                                                'institucional' => 'bg-slate-100 text-slate-700',
+                                                'academico' => 'bg-blue-50 text-blue-700',
+                                                'emergencia' => 'bg-red-50 text-red-700',
+                                                'pagos' => 'bg-green-50 text-green-700',
+                                                'cultural' => 'bg-violet-50 text-violet-700'
+                                            ];
+                                            $cat_class = $cat_colors[$cat] ?? 'bg-slate-100 text-slate-700';
+                                            ?>
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?= $cat_class ?>"><?= htmlspecialchars(ucfirst($cat)) ?></span>
+                                        </td>
+                                        <td class="px-6 py-3 text-center">
+                                            <?php
+                                            $pri = $aviso['prioridad'] ?? 'normal';
+                                            $pri_colors = [
+                                                'normal' => 'bg-zinc-100 text-zinc-600',
+                                                'importante' => 'bg-amber-50 text-amber-700',
+                                                'urgente' => 'bg-red-50 text-red-700'
+                                            ];
+                                            $pri_class = $pri_colors[$pri] ?? 'bg-zinc-100 text-zinc-600';
+                                            ?>
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?= $pri_class ?>"><?= htmlspecialchars(ucfirst($pri)) ?></span>
+                                        </td>
+                                        <td class="px-6 py-3 text-center">
+                                            <?php if (!empty($aviso['leido']) && $aviso['leido']): ?>
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">Leido</span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">No leido</span>
@@ -249,7 +374,7 @@ require_once 'includes/header.php';
                                         <td class="px-6 py-3 text-xs text-zinc-500"><?= htmlspecialchars($aviso['creado_por']) ?></td>
                                         <td class="px-6 py-3 text-xs text-zinc-500"><?= date('d/m/Y H:i', strtotime($aviso['fecha_envio'])) ?></td>
                                         <td class="px-6 py-3 text-center">
-                                            <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar este aviso?')">
+                                            <form method="POST" class="inline" onsubmit="return confirm('Eliminar este aviso?')">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                                 <input type="hidden" name="accion" value="eliminar_aviso">
                                                 <input type="hidden" name="id_aviso" value="<?= $aviso['id_aviso'] ?>">
@@ -283,35 +408,28 @@ require_once 'includes/header.php';
         </div>
 
         <script>
-        // Toggle campo de matricula
-        function toggleMatricula() {
-            const select = document.getElementById('select-destinatario');
-            const input = document.getElementById('input-matricula');
-            if (select.value === 'matricula') {
-                input.classList.remove('hidden');
-                input.required = true;
-            } else {
-                input.classList.add('hidden');
-                input.required = false;
-                input.value = '';
+        // Toggle campos de destinatario segun tipo seleccionado
+        function toggleDestinatario() {
+            const tipo = document.getElementById('select-tipo-destinatario').value;
+            const campoGrupo = document.getElementById('campo-grupo');
+            const campoMatricula = document.getElementById('campo-matricula');
+            const selectGrupo = document.getElementById('select-grupo');
+            const inputMatricula = document.getElementById('input-matricula');
+
+            // Ocultar ambos por defecto
+            campoGrupo.classList.add('hidden');
+            campoMatricula.classList.add('hidden');
+            selectGrupo.required = false;
+            inputMatricula.required = false;
+
+            if (tipo === 'grupo') {
+                campoGrupo.classList.remove('hidden');
+                selectGrupo.required = true;
+            } else if (tipo === 'individual') {
+                campoMatricula.classList.remove('hidden');
+                inputMatricula.required = true;
             }
         }
-
-        // Antes de enviar, poner la matrícula como valor real del destinatario
-        document.querySelector('form[method="POST"]').addEventListener('submit', function(e) {
-            const select = document.getElementById('select-destinatario');
-            const input = document.getElementById('input-matricula');
-            if (select.value === 'matricula' && input.value.trim()) {
-                // Crear un input hidden con el valor real de la matrícula
-                const hidden = document.createElement('input');
-                hidden.type = 'hidden';
-                hidden.name = 'destinatario';
-                hidden.value = input.value.trim().toUpperCase();
-                this.appendChild(hidden);
-                // Deshabilitar el select para que no envíe "matricula" literal
-                select.disabled = true;
-            }
-        });
         </script>
 
 <?php require_once 'includes/footer.php'; ?>
