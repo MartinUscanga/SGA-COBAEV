@@ -24,10 +24,23 @@ $mensaje_error = '';
 // Obtener grupos disponibles para el selector
 $grupos_disponibles = [];
 try {
-    $stmt_grupos = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE activo = 1 ORDER BY grupo");
+    // Intentar con filtro activo primero
+    $stmt_grupos = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE activo = 1 AND grupo IS NOT NULL AND grupo != '' ORDER BY grupo");
     $grupos_disponibles = $stmt_grupos->fetchAll(PDO::FETCH_COLUMN);
+    
+    // Si no hay resultados, intentar sin filtro activo
+    if (empty($grupos_disponibles)) {
+        $stmt_grupos = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' ORDER BY grupo");
+        $grupos_disponibles = $stmt_grupos->fetchAll(PDO::FETCH_COLUMN);
+    }
 } catch (PDOException $e) {
-    error_log('SGA Error [avisos grupos]: ' . $e->getMessage());
+    // Si la columna activo no existe, intentar sin ella
+    try {
+        $stmt_grupos = $pdo->query("SELECT DISTINCT grupo FROM alumnos WHERE grupo IS NOT NULL AND grupo != '' ORDER BY grupo");
+        $grupos_disponibles = $stmt_grupos->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e2) {
+        error_log('SGA Error [avisos grupos]: ' . $e2->getMessage());
+    }
 }
 
 // Procesar envio de aviso
@@ -70,10 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             } elseif ($tipo_destinatario === 'individual') {
                 if (empty($matricula_especifica)) {
                     $mensaje_error = 'Debe ingresar una matricula.';
-                } elseif (!preg_match('/^[A-Z]\d{7}$/i', $matricula_especifica)) {
-                    $mensaje_error = 'La matricula debe tener formato valido (letra + 7 digitos).';
+                } elseif (!preg_match('/^\d{9}$/', $matricula_especifica)) {
+                    $mensaje_error = 'La matricula debe tener 9 digitos numericos.';
                 } else {
-                    $destinatario = strtoupper($matricula_especifica);
+                    $destinatario = trim($matricula_especifica);
                 }
             }
 
@@ -250,7 +263,7 @@ require_once 'includes/header.php';
                     </div>
                     <div id="campo-matricula" class="hidden">
                         <label class="block text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">Matricula del alumno</label>
-                        <input type="text" name="matricula_especifica" id="input-matricula" placeholder="Ej: B2024001" maxlength="50" class="w-full md:w-1/2 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-vino transition-colors">
+                        <input type="text" name="matricula_especifica" id="input-matricula" placeholder="Ej: 122310104" maxlength="9" class="w-full md:w-1/2 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-vino transition-colors">
                     </div>
 
                     <!-- Fila 3: Categoria y Prioridad -->
